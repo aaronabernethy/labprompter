@@ -10,9 +10,11 @@
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke-test",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "release": "electron-builder --publish always"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "mammoth": "^1.8.0",
     "node-hid": "^3.0.0"
   },
@@ -23,11 +25,24 @@
   "build": {
     "appId": "com.labprompter.app",
     "productName": "LabPrompter",
-    "files": ["src/**/*", "package.json"],
-    "directories": { "output": "dist" },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
     "mac": {
       "category": "public.app-category.video",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "aaronabernethy",
+      "repo": "labprompter"
     }
   }
 }

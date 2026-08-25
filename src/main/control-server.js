@@ -78,9 +78,13 @@ function setState(patch) {
   state = { ...state, ...patch };
 }
 
+function getState() {
+  return state;
+}
+
 function stop() {
   if (server) server.close();
   server = null;
 }
 
-module.exports = { start, stop, setState, PORT };
+module.exports = { start, stop, setState, getState, PORT };

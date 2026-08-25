@@ -82,6 +82,21 @@ To build a standalone app (`dist/LabPrompter.app`, unsigned):
 npm run dist
 ```
 
+## Releasing updates
+
+The installed app checks GitHub Releases on launch (via `electron-updater`), downloads any newer version in the background, and offers "Install & Restart" — never while Present Mode is up. To ship an update:
+
+1. Bump `version` in `package.json` (updates only trigger on a higher version).
+2. Commit, then build and upload:
+
+```bash
+GH_TOKEN=$(gh auth token) npm run release
+```
+
+3. electron-builder creates a **draft** release on GitHub with the dmg/zip and update manifest — open it and press *Publish*. Installed apps will offer the update on their next launch.
+
+The update feed requires the app to be able to read the repo's releases: either keep the repo public, or the studio Mac needs a `GH_TOKEN` available to the app for a private repo.
+
 ## Troubleshooting
 
 - **Controller does nothing** — check the status dot in the editor's bottom-left corner. If it says "No controller", re-plug the device (LabPrompter re-scans every 3 seconds). Make sure Contour's own driver app isn't also running. If macOS is blocking HID access, grant your terminal (or the built app) **Input Monitoring** in System Settings → Privacy & Security.

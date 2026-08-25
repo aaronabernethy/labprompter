@@ -6,6 +6,10 @@ const shuttle = require('./shuttle');
 const importers = require('./importers');
 const control = require('./control-server');
 
+// Dev runs store data under the package name ("labprompter"); pin the
+// packaged app to the same folder so the script library carries over.
+app.setPath('userData', path.join(app.getPath('appData'), 'labprompter'));
+
 const dev = {
   smoke: process.argv.includes('--smoke-test'),
   shot: (process.argv.find((a) => a.startsWith('--shot=')) || '').split('=')[1] || null,
@@ -15,6 +19,40 @@ const dev = {
 let win = null;
 let savedBounds = null;
 let blockerId = null;
+
+function setupAutoUpdate() {
+  if (!app.isPackaged || dev.smoke || dev.shot) return;
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require('electron-updater'));
+  } catch (err) {
+    console.error('[update] electron-updater unavailable:', err.message);
+    return;
+  }
+  autoUpdater.autoDownload = true;
+  autoUpdater.on('error', (err) => console.error('[update]', err ? err.message : 'unknown error'));
+  autoUpdater.on('update-downloaded', (info) => {
+    // Never pop a dialog onto the prompter mid-read; wait until the
+    // operator is back in the editor.
+    const offer = () => {
+      if (control.getState().presenting) {
+        setTimeout(offer, 30000);
+        return;
+      }
+      const choice = dialog.showMessageBoxSync(win, {
+        type: 'info',
+        buttons: ['Install & Restart', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+        message: `LabPrompter ${info.version} is ready to install.`,
+        detail: 'The update downloaded in the background. Install it now? "Later" installs it the next time you quit.',
+      });
+      if (choice === 0) autoUpdater.quitAndInstall();
+    };
+    offer();
+  });
+  autoUpdater.checkForUpdates().catch((err) => console.error('[update] check failed:', err.message));
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -193,6 +231,7 @@ app.whenReady().then(() => {
   }
   buildMenu();
   createWindow();
+  setupAutoUpdate();
   control.start({
     onCommand: (action) => {
       if (win) win.webContents.send('remote:action', action);
