@@ -4,6 +4,7 @@ const fs = require('fs');
 const storage = require('./storage');
 const shuttle = require('./shuttle');
 const importers = require('./importers');
+const control = require('./control-server');
 
 const dev = {
   smoke: process.argv.includes('--smoke-test'),
@@ -145,10 +146,25 @@ ipcMain.on('renderer:error', (e, msg) => {
   if (dev.smoke) app.exit(2);
 });
 
+ipcMain.on('state:update', (e, patch) => control.setState(patch));
+
 ipcMain.on('renderer:ready', async () => {
   if (dev.smoke) {
-    console.log('SMOKE_OK');
-    setTimeout(() => app.exit(0), 100);
+    const http = require('http');
+    http
+      .get(`http://127.0.0.1:${control.PORT}/state`, (res) => {
+        if (res.statusCode === 200) {
+          console.log('SMOKE_OK');
+        } else {
+          console.error('[labprompter] control server bad status:', res.statusCode);
+          app.exitCode = 2;
+        }
+        setTimeout(() => app.exit(app.exitCode || 0), 100);
+      })
+      .on('error', (err) => {
+        console.error('[labprompter] control server unreachable:', err.message);
+        app.exit(2);
+      });
     return;
   }
   if (dev.shot) {
@@ -171,8 +187,17 @@ ipcMain.on('renderer:ready', async () => {
 });
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin' && !app.isPackaged) {
+    const dockIcon = path.join(__dirname, '..', 'assets', 'icon.png');
+    if (fs.existsSync(dockIcon)) app.dock.setIcon(dockIcon);
+  }
   buildMenu();
   createWindow();
+  control.start({
+    onCommand: (action) => {
+      if (win) win.webContents.send('remote:action', action);
+    },
+  });
   shuttle.start({
     onEvent: (ev) => {
       if (win) win.webContents.send('shuttle:event', ev);
@@ -191,6 +216,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   shuttle.stop();
+  control.stop();
   stopBlocker();
 });
 

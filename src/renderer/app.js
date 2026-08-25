@@ -1,5 +1,5 @@
 import { renderChunks, buildBackdropHTML, countWords, fmtDuration, fmtTime } from './render.js';
-import { Prompter } from './present.js';
+import { Prompter, JOG_BASE_PX } from './present.js';
 
 const lab = window.lab;
 
@@ -42,13 +42,30 @@ let settingsTimer = null;
 
 const P = new Prompter(els, () => settings, {
   onExit: () => exitPresent(),
-  adjustBaseSpeed: (d) => {
-    settings.baseSpeed = Math.min(400, Math.max(10, settings.baseSpeed + d));
-    persistSettings();
-  },
+  adjustBaseSpeed: (d) => adjustBaseSpeed(d),
   adjustFontSize: (d) => adjustFontSize(d),
+  adjustEyeLine: (d) => adjustEyeLine(d),
   toggleCaps: () => setAllCaps(!settings.allCaps),
+  onPlayState: () => pushState(),
 });
+
+function pushState() {
+  lab.state({ presenting: P.active, playing: P.playing });
+}
+
+function adjustBaseSpeed(d) {
+  settings.baseSpeedPct = Math.min(100, Math.max(1, settings.baseSpeedPct + d));
+  syncSettingsUI();
+  persistSettings();
+}
+
+function adjustEyeLine(d) {
+  settings.readingLinePct = Math.min(70, Math.max(10, settings.readingLinePct + d));
+  applyPromptVars();
+  syncSettingsUI();
+  persistSettings();
+  if (P.active) P.measure();
+}
 
 function adjustFontSize(d) {
   settings.fontSize = Math.min(120, Math.max(24, settings.fontSize + d));
@@ -75,6 +92,10 @@ const ACTIONS = {
   jumpTop: { label: 'Jump to top', run: () => P.toTop() },
   fontUp: { label: 'Text size +', run: () => adjustFontSize(2) },
   fontDown: { label: 'Text size −', run: () => adjustFontSize(-2) },
+  speedUp: { label: 'Base speed +', run: () => adjustBaseSpeed(2) },
+  speedDown: { label: 'Base speed −', run: () => adjustBaseSpeed(-2) },
+  eyeLineUp: { label: 'Eye line up', run: () => adjustEyeLine(-1) },
+  eyeLineDown: { label: 'Eye line down', run: () => adjustEyeLine(1) },
   toggleCaps: { label: 'Toggle ALL CAPS', run: () => setAllCaps(!settings.allCaps) },
   exitPresent: { label: 'Exit Present Mode', run: () => exitPresent() },
 };
@@ -118,9 +139,9 @@ const SETTING_CONTROLS = [
   { id: 'setLineHeight', key: 'lineHeight', fmt: (v) => Number(v).toFixed(2) },
   { id: 'setTextWidth', key: 'textWidthPct', fmt: (v) => v + '%' },
   { id: 'setLinePct', key: 'readingLinePct', fmt: (v) => v + '%' },
-  { id: 'setBaseSpeed', key: 'baseSpeed', fmt: (v) => v + ' px/s' },
-  { id: 'setMaxShuttle', key: 'maxShuttleSpeed', fmt: (v) => v + ' px/s' },
-  { id: 'setJogStep', key: 'jogStep', fmt: (v) => v + ' px' },
+  { id: 'setBaseSpeed', key: 'baseSpeedPct', fmt: (v) => v + '%' },
+  { id: 'setMaxShuttle', key: 'shuttleSens', fmt: (v) => v + '%' },
+  { id: 'setJogStep', key: 'jogSens', fmt: (v) => v + '%' },
   { id: 'setWpm', key: 'wpm', fmt: (v) => v + ' wpm' },
 ];
 
@@ -366,6 +387,7 @@ function insertBreak() {
 async function enterPresent() {
   if (P.active) return;
   flushSave();
+  closeSettings();
   renderChunks(els.scriptBody.value, els.promptContent);
   applyPromptVars();
   document.body.dataset.view = 'present';
@@ -374,7 +396,10 @@ async function enterPresent() {
   } catch {
     // present anyway in the current window
   }
-  requestAnimationFrame(() => P.enter());
+  requestAnimationFrame(() => {
+    P.enter();
+    pushState();
+  });
 }
 
 function exitPresent() {
@@ -382,7 +407,45 @@ function exitPresent() {
   P.exit();
   document.body.dataset.view = 'editor';
   lab.present.exit();
+  pushState();
   els.scriptBody.focus();
+}
+
+// Commands arriving over the local control API (Stream Deck, curl, …).
+function handleRemote(action) {
+  if (action === 'togglePresent') {
+    if (P.active) exitPresent();
+    else enterPresent();
+    return;
+  }
+  if (action === 'enterPresent') {
+    if (!P.active) enterPresent();
+    return;
+  }
+  if (action === 'exitPresent') {
+    exitPresent();
+    return;
+  }
+  if (!P.active) return;
+  switch (action) {
+    case 'play':
+      P.play();
+      break;
+    case 'pause':
+      P.pause();
+      break;
+    case 'scrollDown':
+      P.hold(1);
+      break;
+    case 'scrollUp':
+      P.hold(-1);
+      break;
+    case 'scrollStop':
+      P.hold(0);
+      break;
+    default:
+      (ACTIONS[action] || ACTIONS.none).run();
+  }
 }
 
 // ---------- Shuttle ----------
@@ -409,7 +472,7 @@ function handleShuttle(ev) {
   if (ev.type === 'shuttle') {
     P.setShuttle(ev.value);
   } else if (ev.type === 'jog') {
-    if (P.active) P.scrub(ev.delta * settings.jogStep);
+    if (P.active) P.scrub(ev.delta * (settings.jogSens / 100) * JOG_BASE_PX);
   } else if (ev.type === 'button' && ev.down) {
     if (!els.settingsModal.hidden) {
       flashButtonRow(ev.button);
@@ -493,6 +556,7 @@ function wireEvents() {
 
   lab.shuttle.onEvent(handleShuttle);
   lab.shuttle.onStatus(renderShuttleStatus);
+  lab.onRemote(handleRemote);
 
   window.addEventListener('error', (e) => lab.reportError(String(e.message || e.error)));
   window.addEventListener('unhandledrejection', (e) => lab.reportError('unhandled rejection: ' + String(e.reason)));

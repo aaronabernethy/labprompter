@@ -10,9 +10,9 @@ const DEFAULTS = {
   readingLinePct: 35,
   showProgress: true,
   autoMoveDisplay: true,
-  baseSpeed: 60,
-  maxShuttleSpeed: 600,
-  jogStep: 48,
+  baseSpeedPct: 10,
+  shuttleSens: 100,
+  jogSens: 100,
   wpm: 150,
   lastScriptId: null,
   buttonMap: {
@@ -51,6 +51,19 @@ function countWords(text) {
   return t ? t.split(/\s+/).length : 0;
 }
 
+// Pre-1.1 settings stored speeds in px/s; percentages replaced them
+// (100% base speed = 600 px/s, sensitivities are % of their defaults).
+function migrate(data) {
+  const d = { ...data };
+  if (d.baseSpeed != null && d.baseSpeedPct == null) d.baseSpeedPct = Math.round(d.baseSpeed / 6);
+  if (d.maxShuttleSpeed != null && d.shuttleSens == null) d.shuttleSens = Math.round(d.maxShuttleSpeed / 6);
+  if (d.jogStep != null && d.jogSens == null) d.jogSens = Math.round((d.jogStep / 48) * 100);
+  delete d.baseSpeed;
+  delete d.maxShuttleSpeed;
+  delete d.jogStep;
+  return d;
+}
+
 function getSettings() {
   let data = {};
   try {
@@ -58,6 +71,7 @@ function getSettings() {
   } catch {
     data = {};
   }
+  data = migrate(data);
   return {
     ...DEFAULTS,
     ...data,

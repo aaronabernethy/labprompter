@@ -1,0 +1,29 @@
+{
+  "SDKVersion": 2,
+  "Author": "Aaron Abernethy",
+  "Name": "LabPrompter Control",
+  "Description": "Control the LabPrompter teleprompter: scroll, play/pause, sections, text size, speed, and eye line.",
+  "URL": "https://github.com/aaronabernethy/labprompter",
+  "Version": "1.0.0",
+  "Icon": "imgs/pluginIcon",
+  "Category": "LabPrompter",
+  "CategoryIcon": "imgs/pluginIcon",
+  "CodePath": "app.html",
+  "OS": [
+    { "Platform": "mac", "MinimumVersion": "10.15" }
+  ],
+  "Software": { "MinimumVersion": "5.0" },
+  "Actions": [
+    {
+      "Icon": "imgs/actionIcon",
+      "Name": "Prompter Command",
+      "UUID": "com.labprompter.streamdeck.command",
+      "Tooltip": "Send a command to LabPrompter (choose which in the key settings)",
+      "PropertyInspectorPath": "pi.html",
+      "SupportedInMultiActions": true,
+      "States": [
+        { "Image": "imgs/keyIcon", "TitleAlignment": "bottom", "FontSize": "9" }
+      ]
+    }
+  ]
+}

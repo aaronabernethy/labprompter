@@ -61,7 +61,7 @@
         <i class="dot"></i><span class="label">No controller</span>
       </span>
       <div class="spacer"></div>
-      <span class="hint">Present keys:&ensp;Space play/pause&ensp;·&ensp;↑↓ nudge&ensp;·&ensp;←→ speed&ensp;·&ensp;PgUp/PgDn markers&ensp;·&ensp;−/= size&ensp;·&ensp;C caps&ensp;·&ensp;R reverse&ensp;·&ensp;Esc exit</span>
+      <span class="hint">Present keys:&ensp;Space play/pause&ensp;·&ensp;↑↓ nudge&ensp;·&ensp;⇧↑↓ eye line&ensp;·&ensp;←→ speed&ensp;·&ensp;PgUp/PgDn markers&ensp;·&ensp;−/= size&ensp;·&ensp;C caps&ensp;·&ensp;R reverse&ensp;·&ensp;Esc exit</span>
     </footer>
   </div>
 
@@ -96,8 +96,8 @@
             <output data-out="setTextWidth"></output>
           </label>
           <label class="row">
-            <span>Reading line position</span>
-            <input type="range" id="setLinePct" min="15" max="60" step="1" />
+            <span>Reading line (eye line)</span>
+            <input type="range" id="setLinePct" min="10" max="70" step="1" />
             <output data-out="setLinePct"></output>
           </label>
           <label class="row check"><input type="checkbox" id="setShowProgress" /> Show progress bar</label>
@@ -107,17 +107,17 @@
           <h3>Speed</h3>
           <label class="row">
             <span>Base play speed</span>
-            <input type="range" id="setBaseSpeed" min="10" max="400" step="5" />
+            <input type="range" id="setBaseSpeed" min="1" max="100" step="1" />
             <output data-out="setBaseSpeed"></output>
           </label>
           <label class="row">
-            <span>Shuttle top speed</span>
-            <input type="range" id="setMaxShuttle" min="100" max="1500" step="25" />
+            <span>Shuttle sensitivity</span>
+            <input type="range" id="setMaxShuttle" min="25" max="250" step="5" />
             <output data-out="setMaxShuttle"></output>
           </label>
           <label class="row">
-            <span>Jog step</span>
-            <input type="range" id="setJogStep" min="8" max="160" step="4" />
+            <span>Jog sensitivity</span>
+            <input type="range" id="setJogStep" min="25" max="250" step="5" />
             <output data-out="setJogStep"></output>
           </label>
           <label class="row">

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>LabPrompter Command</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px 14px;
+      background: #2d2d2d;
+      color: #d8d8d8;
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 13px;
+    }
+    .row { display: flex; align-items: center; gap: 10px; }
+    label { min-width: 80px; color: #969696; }
+    select {
+      flex: 1;
+      background: #3d3d3d;
+      color: #d8d8d8;
+      border: 1px solid #4a4a4a;
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <label for="command">Command</label>
+    <select id="command">
+      <optgroup label="Transport">
+        <option value="play">Play</option>
+        <option value="pause">Pause</option>
+        <option value="playPause">Play / Pause (toggle)</option>
+        <option value="scrollDown">Scroll Down (hold)</option>
+        <option value="scrollUp">Scroll Up (hold)</option>
+        <option value="toggleReverse">Reverse</option>
+      </optgroup>
+      <optgroup label="Navigate">
+        <option value="jumpTop">Top</option>
+        <option value="prevMarker">Previous Section</option>
+        <option value="nextMarker">Next Section</option>
+      </optgroup>
+      <optgroup label="Adjust">
+        <option value="fontUp">Text Bigger</option>
+        <option value="fontDown">Text Smaller</option>
+        <option value="speedUp">Speed +</option>
+        <option value="speedDown">Speed −</option>
+        <option value="eyeLineUp">Eye Line Up</option>
+        <option value="eyeLineDown">Eye Line Down</option>
+        <option value="toggleCaps">ALL CAPS</option>
+      </optgroup>
+      <optgroup label="Mode">
+        <option value="togglePresent">Enter / Exit Present Mode</option>
+        <option value="exitPresent">Exit Present Mode</option>
+      </optgroup>
+    </select>
+  </div>
+  <script src="pi.js"></script>
+</body>
+</html>

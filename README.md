@@ -22,7 +22,9 @@ LabPrompter fixes that with a simple trick: the present view carries a thin **re
 - **Script library** — scripts autosave locally as flat JSON files (`~/Library/Application Support/labprompter/scripts/`). Open, rename, and delete from the Library panel.
 - **Present Mode** — fullscreen, black background, white text, zero chrome. A subtle reading line marks the current position, with an optional thin progress bar along the bottom. The cursor auto-hides, and the display is kept awake while presenting.
 - **Shuttle control** — spring-loaded shuttle ring sets scroll speed proportionally (gentle twist = slow crawl, full twist = fast), the free-spinning jog dial nudges/scrubs, and all buttons are remappable in Settings.
-- **Keyboard fallback** — everything works without the controller (and these keys are what a Stream Deck can send later).
+- **Stream Deck plugin** — a bundled plugin (`streamdeck/`) puts prompter keys on an Elgato Stream Deck: Play, Pause, hold-to-scroll up/down, Top, Previous/Next Section, Text Bigger/Smaller, speed, eye line, ALL CAPS, and Present Mode toggle.
+- **Local control API** — anything that can send an HTTP request can drive the prompter: `POST http://127.0.0.1:43717/command` with a plain-text command name; `GET /state` returns `{ presenting, playing }`. Bound to localhost only.
+- **Keyboard fallback** — everything works without any controller.
 
 ## Controls in Present Mode
 
@@ -36,11 +38,34 @@ LabPrompter fixes that with a simple trick: the present view carries a thin **re
 | `Page Down` / `Page Up` (or `]` / `[`) | Next / previous marker |
 | `Home` / `End` | Jump to top / end |
 | `-` / `=` | Text size down / up (keeps your place in the script) |
+| `Shift+↑` / `Shift+↓` | Eye line up / down — move the reading line to match the lens |
 | `C` | Toggle ALL CAPS |
 | `R` | Reverse direction |
 | `Esc` | Exit to editor |
 
+Speeds are percentages: **100% = 600 px/s**, a fast read. A normal talking pace lands around 8–15% at the default text size; the base play speed defaults to 10%. Shuttle and jog have their own sensitivity percentages (100% = default feel).
+
 Default controller buttons (remap in Settings — press a button there to identify it): **1** jump to top, **2** previous marker, **3** play/pause, **4** next marker, **5** exit Present Mode. Buttons can also be bound to text size up/down and the ALL CAPS toggle. The ShuttlePRO v2 (15 buttons) is also recognized.
+
+## Stream Deck
+
+The plugin in `streamdeck/com.labprompter.streamdeck.sdPlugin` adds a **Prompter Command** action: drop it on a key, then pick the command in the key's settings (Play, Pause, Scroll Down/Up — these two scroll while held — Top, Previous/Next Section, Text Bigger/Smaller, Speed ±, Eye Line, ALL CAPS, Present Mode). Play/Pause toggle keys live-update to show ▶ or ❚❚. Keys work regardless of which app has focus, since the plugin talks to LabPrompter's local control API rather than sending keystrokes.
+
+To install, copy the plugin folder and relaunch the Stream Deck app:
+
+```bash
+cp -R streamdeck/com.labprompter.streamdeck.sdPlugin ~/Library/Application\ Support/com.elgato.StreamDeck/Plugins/
+```
+
+If a key shows a warning triangle when pressed, LabPrompter isn't running.
+
+## Icons
+
+All icons (macOS `build/icon.icns`, dev dock icon, Stream Deck key/action icons) are generated from one canvas drawing. To regenerate after tweaking `tools/icons.js`:
+
+```bash
+npx electron tools/make-icons.js && iconutil -c icns build/icon.iconset -o build/icon.icns
+```
 
 ## Running it
 

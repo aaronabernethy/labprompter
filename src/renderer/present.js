@@ -1,6 +1,11 @@
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const easeOut = (k) => 1 - Math.pow(1 - k, 3);
 
+// Speeds are expressed to the user as percentages; 100% = this many px/s.
+export const FULL_SPEED_PX = 600;
+// Jog dial px per detent at 100% sensitivity.
+export const JOG_BASE_PX = 48;
+
 export class Prompter {
   constructor(els, getSettings, hooks) {
     this.els = els;
@@ -14,11 +19,13 @@ export class Prompter {
     this.playing = false;
     this.dir = 1;
     this.shuttleDetent = 0;
+    this.holdDir = 0;
     this.jumps = [];
     this.tween = null;
     this._raf = null;
     this._lastT = 0;
     this._cursorTimer = null;
+    this._lastPlayState = false;
 
     this._onResize = () => {
       if (this.active) this.measure();
@@ -38,6 +45,7 @@ export class Prompter {
     this.pos = 0;
     this.playing = false;
     this.dir = 1;
+    this.holdDir = 0;
     this.tween = null;
     window.addEventListener('resize', this._onResize);
     this.els.presentView.addEventListener('mousemove', this._wake);
@@ -82,9 +90,11 @@ export class Prompter {
     const s = this.s();
     if (this.shuttleDetent !== 0) {
       const d = this.shuttleDetent;
-      return Math.sign(d) * Math.pow(Math.abs(d) / 7, 2.2) * s.maxShuttleSpeed;
+      return Math.sign(d) * Math.pow(Math.abs(d) / 7, 2.2) * (s.shuttleSens / 100) * FULL_SPEED_PX;
     }
-    return this.playing ? this.dir * s.baseSpeed : 0;
+    const base = (s.baseSpeedPct / 100) * FULL_SPEED_PX;
+    if (this.holdDir !== 0) return this.holdDir * base;
+    return this.playing ? this.dir * base : 0;
   }
 
   _tick(t) {
@@ -118,8 +128,13 @@ export class Prompter {
   apply() {
     this.els.promptContent.style.transform = `translate3d(0, ${(this.lineY - this.pos).toFixed(2)}px, 0)`;
     this.els.progressFill.style.width = (this.max ? (this.pos / this.max) * 100 : 0) + '%';
-    const paused = this.active && !this.playing && this.shuttleDetent === 0 && !this.tween && this.pos > 2;
+    const paused =
+      this.active && !this.playing && this.shuttleDetent === 0 && this.holdDir === 0 && !this.tween && this.pos > 2;
     this.els.pauseBadge.classList.toggle('show', paused);
+    if (this.playing !== this._lastPlayState) {
+      this._lastPlayState = this.playing;
+      if (this.hooks.onPlayState) this.hooks.onPlayState(this.playing);
+    }
   }
 
   setShuttle(v) {
@@ -135,6 +150,20 @@ export class Prompter {
   toggle() {
     this.tween = null;
     this.playing = !this.playing;
+  }
+
+  play() {
+    this.tween = null;
+    this.playing = true;
+  }
+
+  pause() {
+    this.playing = false;
+  }
+
+  hold(dir) {
+    this.holdDir = dir;
+    if (dir) this.tween = null;
   }
 
   reverse() {
@@ -169,16 +198,18 @@ export class Prompter {
         this.toggle();
         break;
       case 'ArrowDown':
-        this.scrub(nudge);
+        if (e.shiftKey) this.hooks.adjustEyeLine(1);
+        else this.scrub(nudge);
         break;
       case 'ArrowUp':
-        this.scrub(-nudge);
+        if (e.shiftKey) this.hooks.adjustEyeLine(-1);
+        else this.scrub(-nudge);
         break;
       case 'ArrowRight':
-        this.hooks.adjustBaseSpeed(10);
+        this.hooks.adjustBaseSpeed(2);
         break;
       case 'ArrowLeft':
-        this.hooks.adjustBaseSpeed(-10);
+        this.hooks.adjustBaseSpeed(-2);
         break;
       case 'PageDown':
       case ']':

@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('lab', {
     onStatus: (cb) => ipcRenderer.on('shuttle:status', (e, data) => cb(data)),
   },
   onMenu: (cb) => ipcRenderer.on('menu:action', (e, action) => cb(action)),
+  onRemote: (cb) => ipcRenderer.on('remote:action', (e, action) => cb(action)),
+  state: (patch) => ipcRenderer.send('state:update', patch),
   reportError: (msg) => ipcRenderer.send('renderer:error', msg),
   ready: () => ipcRenderer.send('renderer:ready'),
 });
