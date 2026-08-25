@@ -1,0 +1,33 @@
+{
+  "name": "labprompter",
+  "productName": "LabPrompter",
+  "version": "1.0.0",
+  "description": "Local-only teleprompter for the Elgato Prompter XL with an operator-visible reading line and Contour shuttle control.",
+  "private": true,
+  "license": "MIT",
+  "author": "Aaron Abernethy",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke-test",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "mammoth": "^1.8.0",
+    "node-hid": "^3.0.0"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.labprompter.app",
+    "productName": "LabPrompter",
+    "files": ["src/**/*", "package.json"],
+    "directories": { "output": "dist" },
+    "mac": {
+      "category": "public.app-category.video",
+      "target": ["dmg", "zip"]
+    }
+  }
+}

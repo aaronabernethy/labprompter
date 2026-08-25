@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+  <title>LabPrompter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-view="editor">
+
+  <div id="editorView">
+    <header class="topbar">
+      <div class="brand">LabPrompter</div>
+      <input id="scriptTitle" class="title-input" spellcheck="false" placeholder="Untitled" />
+      <span id="saveState" class="save-state"></span>
+      <div class="spacer"></div>
+      <button id="btnLibrary" class="btn">Library</button>
+      <button id="btnImport" class="btn">Import</button>
+      <button id="btnSettings" class="btn">Settings</button>
+      <button id="btnPresent" class="btn primary">Present&ensp;▸</button>
+    </header>
+
+    <div class="workspace">
+      <aside id="libraryPanel" class="library" hidden>
+        <div class="library-head">
+          <span>Scripts</span>
+          <button id="btnNew" class="btn small">＋ New</button>
+        </div>
+        <ul id="scriptList"></ul>
+      </aside>
+
+      <section class="editor-pane">
+        <div class="editor-stack">
+          <div class="editor-backdrop"><div id="backdropContent"></div></div>
+          <textarea id="scriptBody" spellcheck="false"
+            placeholder="Paste or type your script here…&#10;&#10;Put --- (or [BREAK]) alone on a line to add a jump marker."></textarea>
+        </div>
+        <div class="editor-tools">
+          <button id="btnInsertBreak" class="btn small">－ Insert break</button>
+          <span id="stats" class="stats"></span>
+        </div>
+      </section>
+
+      <section class="preview-pane">
+        <div class="preview-head">Prompter preview</div>
+        <div id="previewScroll" class="preview-scroll">
+          <div id="previewContent" class="prompt-text preview-content"></div>
+        </div>
+        <div class="preview-tools">
+          <label class="size-label">Text size
+            <input type="range" id="fontSize" min="24" max="120" step="2" />
+            <span id="fontSizeVal"></span>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <footer class="statusbar">
+      <span id="shuttleStatus" class="shuttle-status">
+        <i class="dot"></i><span class="label">No controller</span>
+      </span>
+      <div class="spacer"></div>
+      <span class="hint">Present keys:&ensp;Space play/pause&ensp;·&ensp;↑↓ nudge&ensp;·&ensp;←→ speed&ensp;·&ensp;PgUp/PgDn markers&ensp;·&ensp;R reverse&ensp;·&ensp;Esc exit</span>
+    </footer>
+  </div>
+
+  <div id="presentView">
+    <div id="promptViewport">
+      <div id="promptContent" class="prompt-text"></div>
+    </div>
+    <div id="readingLine"></div>
+    <div class="edge-fade top"></div>
+    <div class="edge-fade bottom"></div>
+    <div id="pauseBadge">❚❚</div>
+    <div id="progressBar"><div id="progressFill"></div></div>
+  </div>
+
+  <div id="settingsModal" class="modal-overlay" hidden>
+    <div class="modal">
+      <header class="modal-head">
+        <h2>Settings</h2>
+        <button id="btnCloseSettings" class="btn small">✕</button>
+      </header>
+      <div class="modal-body">
+        <section>
+          <h3>Prompter</h3>
+          <label class="row">
+            <span>Line height</span>
+            <input type="range" id="setLineHeight" min="1.1" max="2" step="0.05" />
+            <output data-out="setLineHeight"></output>
+          </label>
+          <label class="row">
+            <span>Column width</span>
+            <input type="range" id="setTextWidth" min="50" max="100" step="2" />
+            <output data-out="setTextWidth"></output>
+          </label>
+          <label class="row">
+            <span>Reading line position</span>
+            <input type="range" id="setLinePct" min="15" max="60" step="1" />
+            <output data-out="setLinePct"></output>
+          </label>
+          <label class="row check"><input type="checkbox" id="setShowProgress" /> Show progress bar</label>
+          <label class="row check"><input type="checkbox" id="setAutoMove" /> Present on secondary display automatically</label>
+        </section>
+        <section>
+          <h3>Speed</h3>
+          <label class="row">
+            <span>Base play speed</span>
+            <input type="range" id="setBaseSpeed" min="10" max="400" step="5" />
+            <output data-out="setBaseSpeed"></output>
+          </label>
+          <label class="row">
+            <span>Shuttle top speed</span>
+            <input type="range" id="setMaxShuttle" min="100" max="1500" step="25" />
+            <output data-out="setMaxShuttle"></output>
+          </label>
+          <label class="row">
+            <span>Jog step</span>
+            <input type="range" id="setJogStep" min="8" max="160" step="4" />
+            <output data-out="setJogStep"></output>
+          </label>
+          <label class="row">
+            <span>Reading pace (time estimate)</span>
+            <input type="range" id="setWpm" min="90" max="220" step="5" />
+            <output data-out="setWpm"></output>
+          </label>
+        </section>
+        <section>
+          <h3>Controller buttons</h3>
+          <p class="muted" id="ctlHint">Press a button on the controller to highlight it below.</p>
+          <div id="buttonRows"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
