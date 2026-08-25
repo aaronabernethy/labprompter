@@ -17,7 +17,7 @@ LabPrompter fixes that with a simple trick: the present view carries a thin **re
 
 ## Features
 
-- **Script editor** — plain-text editing, so pasting from Word/Docs/Notes strips all formatting automatically. Import from `.txt`, `.md`, and `.docx`. Live prompter preview with adjustable text size.
+- **Script editor** — plain-text editing, so pasting from Word/Docs/Notes strips all formatting automatically. Import from `.txt`, `.md`, and `.docx`. Live prompter preview with adjustable text size and an ALL CAPS toggle.
 - **Jump markers** — put `---` (or `[BREAK]`) alone on a line to mark a jump point. Markers show as amber pills in the editor and as labeled dividers in the preview; in Present Mode they're invisible jump targets.
 - **Script library** — scripts autosave locally as flat JSON files (`~/Library/Application Support/labprompter/scripts/`). Open, rename, and delete from the Library panel.
 - **Present Mode** — fullscreen, black background, white text, zero chrome. A subtle reading line marks the current position, with an optional thin progress bar along the bottom. The cursor auto-hides, and the display is kept awake while presenting.
@@ -35,10 +35,12 @@ LabPrompter fixes that with a simple trick: the present view carries a thin **re
 | `→` / `←` | Base speed up / down |
 | `Page Down` / `Page Up` (or `]` / `[`) | Next / previous marker |
 | `Home` / `End` | Jump to top / end |
+| `-` / `=` | Text size down / up (keeps your place in the script) |
+| `C` | Toggle ALL CAPS |
 | `R` | Reverse direction |
 | `Esc` | Exit to editor |
 
-Default controller buttons (remap in Settings — press a button there to identify it): **1** jump to top, **2** previous marker, **3** play/pause, **4** next marker, **5** exit Present Mode. The ShuttlePRO v2 (15 buttons) is also recognized.
+Default controller buttons (remap in Settings — press a button there to identify it): **1** jump to top, **2** previous marker, **3** play/pause, **4** next marker, **5** exit Present Mode. Buttons can also be bound to text size up/down and the ALL CAPS toggle. The ShuttlePRO v2 (15 buttons) is also recognized.
 
 ## Running it
 

@@ -4,6 +4,7 @@ const { app } = require('electron');
 
 const DEFAULTS = {
   fontSize: 56,
+  allCaps: false,
   lineHeight: 1.45,
   textWidthPct: 92,
   readingLinePct: 35,

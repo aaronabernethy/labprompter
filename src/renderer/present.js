@@ -67,6 +67,17 @@ export class Prompter {
     this.apply();
   }
 
+  // Re-measure after a layout-affecting change (font size, caps) while
+  // keeping the reading position at the same fraction of the script.
+  remeasurePreserve() {
+    if (!this.active) return;
+    const ratio = this.max ? this.pos / this.max : 0;
+    this.tween = null;
+    this.measure();
+    this.pos = ratio * this.max;
+    this.apply();
+  }
+
   speed() {
     const s = this.s();
     if (this.shuttleDetent !== 0) {
@@ -182,6 +193,18 @@ export class Prompter {
         break;
       case 'End':
         this.tweenTo(this.max);
+        break;
+      case '-':
+      case '_':
+        this.hooks.adjustFontSize(-2);
+        break;
+      case '=':
+      case '+':
+        this.hooks.adjustFontSize(2);
+        break;
+      case 'c':
+      case 'C':
+        this.hooks.toggleCaps();
         break;
       case 'r':
       case 'R':

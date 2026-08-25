@@ -46,7 +46,25 @@ const P = new Prompter(els, () => settings, {
     settings.baseSpeed = Math.min(400, Math.max(10, settings.baseSpeed + d));
     persistSettings();
   },
+  adjustFontSize: (d) => adjustFontSize(d),
+  toggleCaps: () => setAllCaps(!settings.allCaps),
 });
+
+function adjustFontSize(d) {
+  settings.fontSize = Math.min(120, Math.max(24, settings.fontSize + d));
+  applyPromptVars();
+  syncSettingsUI();
+  persistSettings();
+  P.remeasurePreserve();
+}
+
+function setAllCaps(on) {
+  settings.allCaps = on;
+  applyPromptVars();
+  syncSettingsUI();
+  persistSettings();
+  P.remeasurePreserve();
+}
 
 const ACTIONS = {
   none: { label: 'Do nothing', run: () => {} },
@@ -55,6 +73,9 @@ const ACTIONS = {
   prevMarker: { label: 'Previous marker', run: () => P.prev() },
   toggleReverse: { label: 'Toggle reverse', run: () => P.reverse() },
   jumpTop: { label: 'Jump to top', run: () => P.toTop() },
+  fontUp: { label: 'Text size +', run: () => adjustFontSize(2) },
+  fontDown: { label: 'Text size −', run: () => adjustFontSize(-2) },
+  toggleCaps: { label: 'Toggle ALL CAPS', run: () => setAllCaps(!settings.allCaps) },
   exitPresent: { label: 'Exit Present Mode', run: () => exitPresent() },
 };
 
@@ -84,6 +105,7 @@ function applyPromptVars() {
   r.setProperty('--ptw', settings.textWidthPct + '%');
   els.readingLine.style.top = settings.readingLinePct + '%';
   els.presentView.classList.toggle('no-progress', !settings.showProgress);
+  document.body.classList.toggle('all-caps', settings.allCaps);
 }
 
 function persistSettings() {
@@ -111,6 +133,7 @@ function syncSettingsUI() {
   }
   $('setShowProgress').checked = settings.showProgress;
   $('setAutoMove').checked = settings.autoMoveDisplay;
+  $('capsToggle').checked = settings.allCaps;
 }
 
 function wireSettings() {
@@ -134,6 +157,7 @@ function wireSettings() {
     settings.autoMoveDisplay = e.target.checked;
     persistSettings();
   });
+  $('capsToggle').addEventListener('change', (e) => setAllCaps(e.target.checked));
 }
 
 // ---------- Button mapping ----------
