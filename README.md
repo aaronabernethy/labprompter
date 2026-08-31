@@ -23,6 +23,7 @@ LabPrompter fixes that with a simple trick: the present view carries a thin **re
 - **Present Mode** — fullscreen, black background, white text, zero chrome. A subtle reading line marks the current position, with an optional thin progress bar along the bottom. The cursor auto-hides, and the display is kept awake while presenting.
 - **Shuttle control** — spring-loaded shuttle ring sets scroll speed proportionally (gentle twist = slow crawl, full twist = fast), the free-spinning jog dial nudges/scrubs, and all buttons are remappable in Settings.
 - **Stream Deck plugin** — a bundled plugin (`streamdeck/`) puts prompter keys on an Elgato Stream Deck: Play, Pause, hold-to-scroll up/down, Top, Previous/Next Section, Text Bigger/Smaller, speed, eye line, ALL CAPS, and Present Mode toggle.
+- **Network remote control** — a second Mac running LabPrompter can drive the studio machine. Instances broadcast themselves over Bonjour; click **Remote**, pick the studio Mac, and your keyboard and shuttle control its prompter while a scaled live mirror shows exactly what the talent sees. A dead-man safety zeroes the shuttle if the connection drops.
 - **Local control API** — anything that can send an HTTP request can drive the prompter: `POST http://127.0.0.1:43717/command` with a plain-text command name; `GET /state` returns `{ presenting, playing }`. Bound to localhost only.
 - **Keyboard fallback** — everything works without any controller.
 
@@ -46,6 +47,17 @@ LabPrompter fixes that with a simple trick: the present view carries a thin **re
 Speeds are percentages: **100% = 600 px/s**, a fast read. A normal talking pace lands around 8–15% at the default text size; the base play speed defaults to 10%. Shuttle and jog have their own sensitivity percentages (100% = default feel).
 
 Default controller buttons (remap in Settings — press a button there to identify it): **1** jump to top, **2** previous marker, **3** play/pause, **4** next marker, **5** exit Present Mode. Buttons can also be bound to text size up/down and the ALL CAPS toggle. The ShuttlePRO v2 (15 buttons) is also recognized.
+
+## Remote control from a second Mac
+
+Run LabPrompter on both machines. On the assistant's Mac, click **Remote** — instances on the LAN appear automatically (Bonjour, service type `_labprompter._tcp`, TCP port 43718); there's also a connect-by-address field for networks that block mDNS. Once connected:
+
+- The window becomes a live, scaled mirror of the studio prompter — reading line, progress, play state — so the assistant always sees the read position (put an NDI monitor of the talent in a window beside it).
+- The assistant's **keyboard uses the same keys as Present Mode**, and a shuttle controller plugged into *their* machine drives the studio prompter (button mappings come from the studio Mac's settings).
+- Commands travel as discrete speed-state events, so scrolling stays smooth regardless of network jitter; if the remote's connection drops while the shuttle is deflected, the studio side zeroes it within 2 seconds.
+- `Esc` or **Disconnect** returns to the local editor. Untick *Allow network remote control* in Settings to stop the studio Mac accepting connections (and its Bonjour broadcast).
+
+Anyone on the LAN can connect while remote control is allowed — it's designed for closed studio networks.
 
 ## Stream Deck
 
@@ -96,6 +108,20 @@ GH_TOKEN=$(gh auth token) npm run release
 3. electron-builder creates a **draft** release on GitHub with the dmg/zip and update manifest — open it and press *Publish*. Installed apps will offer the update on their next launch.
 
 The update feed requires the app to be able to read the repo's releases: either keep the repo public, or the studio Mac needs a `GH_TOKEN` available to the app for a private repo.
+
+## Signing & notarization
+
+Builds are configured for hardened runtime + entitlements, ready for Developer ID signing and notarization. One-time setup (needs the Apple Developer account holder):
+
+1. Create a **Developer ID Application** certificate: Xcode → Settings → Accounts → your team → *Manage Certificates* → **+** → *Developer ID Application* (or create it at developer.apple.com and double-click to install). electron-builder automatically prefers it over an Apple Development certificate once it's in the keychain.
+2. Create an **app-specific password** for notarization at appleid.apple.com → Sign-In & Security → App-Specific Passwords.
+3. Export the notarization credentials as env vars when releasing:
+
+```bash
+APPLE_ID="you@example.com" APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx" APPLE_TEAM_ID="YOURTEAMID" GH_TOKEN=$(gh auth token) npm run release
+```
+
+With those set, electron-builder signs with Developer ID, submits to Apple's notary service, and staples the ticket — the dmg then opens cleanly on any Mac. Without them, builds still sign with the development certificate and skip notarization (fine for the studio Mac itself).
 
 ## Troubleshooting
 

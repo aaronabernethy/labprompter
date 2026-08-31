@@ -16,6 +16,7 @@
       <div class="spacer"></div>
       <button id="btnLibrary" class="btn">Library</button>
       <button id="btnImport" class="btn">Import</button>
+      <button id="btnRemote" class="btn">Remote</button>
       <button id="btnSettings" class="btn">Settings</button>
       <button id="btnPresent" class="btn primary">Present&ensp;▸</button>
     </header>
@@ -65,6 +66,31 @@
     </footer>
   </div>
 
+  <div id="remoteView">
+    <header class="remote-bar">
+      <div class="brand">LabPrompter</div>
+      <span id="remoteTarget" class="remote-target"></span>
+      <span id="remoteBadge" class="remote-badge"></span>
+      <div class="spacer"></div>
+      <span id="remoteSpeed" class="remote-speed"></span>
+      <button id="btnRemotePresent" class="btn">Present&ensp;▸</button>
+      <button id="btnRemoteDisconnect" class="btn danger">Disconnect</button>
+    </header>
+    <div id="remoteStage">
+      <div id="remoteScreen">
+        <div id="remoteViewport"><div id="remoteContent" class="prompt-text"></div></div>
+        <div id="remoteLine"></div>
+        <div id="remoteProgress"><div id="remoteProgressFill"></div></div>
+      </div>
+      <div id="remoteOverlay">Waiting for Present Mode on the remote…</div>
+    </div>
+    <footer class="statusbar remote-foot">
+      <span id="remoteShuttleNote"></span>
+      <div class="spacer"></div>
+      <span class="hint">Your keyboard &amp; shuttle drive the remote prompter&ensp;·&ensp;Esc disconnects</span>
+    </footer>
+  </div>
+
   <div id="presentView">
     <div id="promptViewport">
       <div id="promptContent" class="prompt-text"></div>
@@ -74,6 +100,31 @@
     <div class="edge-fade bottom"></div>
     <div id="pauseBadge">❚❚</div>
     <div id="progressBar"><div id="progressFill"></div></div>
+  </div>
+
+  <div id="remoteModal" class="modal-overlay" hidden>
+    <div class="modal">
+      <header class="modal-head">
+        <h2>Remote control</h2>
+        <button id="btnCloseRemote" class="btn small">✕</button>
+      </header>
+      <div class="modal-body">
+        <section>
+          <h3>On this network</h3>
+          <p class="muted">LabPrompter instances broadcast themselves automatically. Pick one to control it from here.</p>
+          <div id="remoteList" class="remote-list"></div>
+          <p class="muted" id="remoteModalStatus"></p>
+        </section>
+        <section>
+          <h3>Connect by address</h3>
+          <div class="row">
+            <input type="text" id="remoteHost" class="text-input" spellcheck="false"
+              placeholder="studio-mac.local or 192.168.1.20" />
+            <button id="btnRemoteConnectManual" class="btn">Connect</button>
+          </div>
+        </section>
+      </div>
+    </div>
   </div>
 
   <div id="settingsModal" class="modal-overlay" hidden>
@@ -102,6 +153,7 @@
           </label>
           <label class="row check"><input type="checkbox" id="setShowProgress" /> Show progress bar</label>
           <label class="row check"><input type="checkbox" id="setAutoMove" /> Present on secondary display automatically</label>
+          <label class="row check"><input type="checkbox" id="setAllowRemote" /> Allow network remote control</label>
         </section>
         <section>
           <h3>Speed</h3>

@@ -5,6 +5,7 @@ const storage = require('./storage');
 const shuttle = require('./shuttle');
 const importers = require('./importers');
 const control = require('./control-server');
+const remote = require('./remote');
 
 // Dev runs store data under the package name ("labprompter"); pin the
 // packaged app to the same folder so the script library carries over.
@@ -14,6 +15,7 @@ const dev = {
   smoke: process.argv.includes('--smoke-test'),
   shot: (process.argv.find((a) => a.startsWith('--shot=')) || '').split('=')[1] || null,
   shotOut: (process.argv.find((a) => a.startsWith('--shot-out=')) || '').split('=')[1] || null,
+  connect: (process.argv.find((a) => a.startsWith('--connect=')) || '').split('=')[1] || null,
 };
 
 let win = null;
@@ -149,7 +151,15 @@ ipcMain.handle('scripts:import', async () => {
 
 // ---- IPC: settings ----
 ipcMain.handle('settings:get', () => storage.getSettings());
-ipcMain.handle('settings:set', (e, patch) => storage.setSettings(patch));
+ipcMain.handle('settings:set', (e, patch) => {
+  const before = storage.getSettings().allowRemote;
+  const merged = storage.setSettings(patch);
+  if (merged.allowRemote !== before) {
+    if (merged.allowRemote) startRemoteServer();
+    else remote.stopServer();
+  }
+  return merged;
+});
 
 // ---- IPC: present mode ----
 ipcMain.handle('present:enter', () => {
@@ -184,9 +194,54 @@ ipcMain.on('renderer:error', (e, msg) => {
   if (dev.smoke) app.exit(2);
 });
 
-ipcMain.on('state:update', (e, patch) => control.setState(patch));
+ipcMain.on('state:update', (e, patch) => {
+  control.setState(patch);
+  remote.broadcast({ t: 'state', ...patch });
+});
+
+// ---- IPC + wiring: network remote control ----
+let lastDoc = null;
+
+function startRemoteServer() {
+  remote.startServer({
+    onCommand: (action) => {
+      if (win) win.webContents.send('remote:action', action);
+    },
+    onInput: (ev) => {
+      if (win) win.webContents.send('shuttle:event', ev);
+    },
+    getDoc: () => lastDoc,
+    getState: () => control.getState(),
+  });
+}
+
+ipcMain.on('remote:doc', (e, doc) => {
+  lastDoc = doc;
+  remote.broadcast({ t: 'doc', ...doc });
+});
+
+const clientCallbacks = {
+  onStatus: (s) => {
+    if (win) win.webContents.send('remote:client-status', s);
+  },
+  onDoc: (d) => {
+    if (win) win.webContents.send('remote:client-doc', d);
+  },
+  onState: (s) => {
+    if (win) win.webContents.send('remote:client-state', s);
+  },
+};
+
+ipcMain.handle('remote:list', () => remote.listDiscovered());
+ipcMain.handle('remote:connect', (e, { host, port }) => remote.connect(host, port, clientCallbacks));
+ipcMain.handle('remote:disconnect', () => remote.disconnect());
+ipcMain.on('remote:send', (e, msg) => remote.clientSend(msg));
 
 ipcMain.on('renderer:ready', async () => {
+  if (dev.connect && !dev.smoke) {
+    const [host, port] = dev.connect.split(':');
+    remote.connect(host, port ? Number(port) : undefined, clientCallbacks);
+  }
   if (dev.smoke) {
     const http = require('http');
     http
@@ -212,6 +267,9 @@ ipcMain.on('renderer:ready', async () => {
         sendMenu('present');
         await new Promise((r) => setTimeout(r, 900));
       }
+      if (dev.shot === 'remote') {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
       const img = await win.webContents.capturePage();
       const out = dev.shotOut || path.join(app.getPath('temp'), `labprompter-${dev.shot}.png`);
       fs.writeFileSync(out, img.toPNG());
@@ -232,6 +290,10 @@ app.whenReady().then(() => {
   buildMenu();
   createWindow();
   setupAutoUpdate();
+  if (storage.getSettings().allowRemote && !dev.smoke) startRemoteServer();
+  remote.startDiscovery((list) => {
+    if (win) win.webContents.send('remote:services', list);
+  });
   control.start({
     onCommand: (action) => {
       if (win) win.webContents.send('remote:action', action);
@@ -256,6 +318,7 @@ app.whenReady().then(() => {
 app.on('before-quit', () => {
   shuttle.stop();
   control.stop();
+  remote.stopAll();
   stopBlocker();
 });
 

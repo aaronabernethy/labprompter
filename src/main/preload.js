@@ -27,6 +27,17 @@ contextBridge.exposeInMainWorld('lab', {
   onMenu: (cb) => ipcRenderer.on('menu:action', (e, action) => cb(action)),
   onRemote: (cb) => ipcRenderer.on('remote:action', (e, action) => cb(action)),
   state: (patch) => ipcRenderer.send('state:update', patch),
+  remote: {
+    services: () => ipcRenderer.invoke('remote:list'),
+    onServices: (cb) => ipcRenderer.on('remote:services', (e, list) => cb(list)),
+    connect: (target) => ipcRenderer.invoke('remote:connect', target),
+    disconnect: () => ipcRenderer.invoke('remote:disconnect'),
+    onStatus: (cb) => ipcRenderer.on('remote:client-status', (e, s) => cb(s)),
+    onDoc: (cb) => ipcRenderer.on('remote:client-doc', (e, d) => cb(d)),
+    onState: (cb) => ipcRenderer.on('remote:client-state', (e, s) => cb(s)),
+    send: (msg) => ipcRenderer.send('remote:send', msg),
+    pushDoc: (doc) => ipcRenderer.send('remote:doc', doc),
+  },
   reportError: (msg) => ipcRenderer.send('renderer:error', msg),
   ready: () => ipcRenderer.send('renderer:ready'),
 });

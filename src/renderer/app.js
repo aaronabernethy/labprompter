@@ -31,6 +31,25 @@ const els = {
   settingsModal: $('settingsModal'),
   btnCloseSettings: $('btnCloseSettings'),
   buttonRows: $('buttonRows'),
+  btnRemote: $('btnRemote'),
+  remoteModal: $('remoteModal'),
+  btnCloseRemote: $('btnCloseRemote'),
+  remoteList: $('remoteList'),
+  remoteModalStatus: $('remoteModalStatus'),
+  remoteHost: $('remoteHost'),
+  btnRemoteConnectManual: $('btnRemoteConnectManual'),
+  remoteView: $('remoteView'),
+  remoteTarget: $('remoteTarget'),
+  remoteBadge: $('remoteBadge'),
+  remoteSpeed: $('remoteSpeed'),
+  btnRemotePresent: $('btnRemotePresent'),
+  btnRemoteDisconnect: $('btnRemoteDisconnect'),
+  remoteStage: $('remoteStage'),
+  remoteScreen: $('remoteScreen'),
+  remoteContent: $('remoteContent'),
+  remoteLine: $('remoteLine'),
+  remoteProgressFill: $('remoteProgressFill'),
+  remoteOverlay: $('remoteOverlay'),
 };
 
 let settings = null;
@@ -39,6 +58,10 @@ let dirty = false;
 let saveTimer = null;
 let previewTimer = null;
 let settingsTimer = null;
+let stateTimer = null;
+
+// Client-side state when this instance is controlling another one.
+const rc = { mode: false, doc: null, state: null, stateAt: 0, raf: null };
 
 const P = new Prompter(els, () => settings, {
   onExit: () => exitPresent(),
@@ -50,7 +73,31 @@ const P = new Prompter(els, () => settings, {
 });
 
 function pushState() {
-  lab.state({ presenting: P.active, playing: P.playing });
+  lab.state({
+    presenting: P.active,
+    playing: P.playing,
+    pos: P.pos,
+    max: P.max,
+    speed: P.active ? P.speed() : 0,
+    baseSpeedPct: settings.baseSpeedPct,
+  });
+}
+
+function pushDoc() {
+  lab.remote.pushDoc({
+    title: current ? current.title : '',
+    body: els.scriptBody.value,
+    vw: window.innerWidth,
+    vh: window.innerHeight,
+    s: {
+      fontSize: settings.fontSize,
+      lineHeight: settings.lineHeight,
+      textWidthPct: settings.textWidthPct,
+      readingLinePct: settings.readingLinePct,
+      allCaps: settings.allCaps,
+      showProgress: settings.showProgress,
+    },
+  });
 }
 
 function adjustBaseSpeed(d) {
@@ -131,7 +178,10 @@ function applyPromptVars() {
 
 function persistSettings() {
   clearTimeout(settingsTimer);
-  settingsTimer = setTimeout(() => lab.settings.set(settings), 400);
+  settingsTimer = setTimeout(() => {
+    lab.settings.set(settings);
+    pushDoc();
+  }, 400);
 }
 
 const SETTING_CONTROLS = [
@@ -154,6 +204,7 @@ function syncSettingsUI() {
   }
   $('setShowProgress').checked = settings.showProgress;
   $('setAutoMove').checked = settings.autoMoveDisplay;
+  $('setAllowRemote').checked = settings.allowRemote;
   $('capsToggle').checked = settings.allCaps;
 }
 
@@ -176,6 +227,10 @@ function wireSettings() {
   });
   $('setAutoMove').addEventListener('change', (e) => {
     settings.autoMoveDisplay = e.target.checked;
+    persistSettings();
+  });
+  $('setAllowRemote').addEventListener('change', (e) => {
+    settings.allowRemote = e.target.checked;
     persistSettings();
   });
   $('capsToggle').addEventListener('change', (e) => setAllCaps(e.target.checked));
@@ -242,6 +297,7 @@ async function doSave() {
     body: current.body,
   });
   setSaveState('Saved ' + fmtTime(updatedAt));
+  pushDoc();
   if (!els.libraryPanel.hidden) refreshLibrary();
 }
 
@@ -263,6 +319,7 @@ function openScript(script) {
   refreshEditorViews();
   settings.lastScriptId = script.id;
   persistSettings();
+  pushDoc();
   if (!els.libraryPanel.hidden) refreshLibrary();
 }
 
@@ -399,11 +456,16 @@ async function enterPresent() {
   requestAnimationFrame(() => {
     P.enter();
     pushState();
+    pushDoc();
   });
+  clearInterval(stateTimer);
+  stateTimer = setInterval(pushState, 100);
 }
 
 function exitPresent() {
   if (!P.active) return;
+  clearInterval(stateTimer);
+  stateTimer = null;
   P.exit();
   document.body.dataset.view = 'editor';
   lab.present.exit();
@@ -427,12 +489,22 @@ function handleRemote(action) {
     return;
   }
   if (!P.active) return;
+  const nudgePx = settings.fontSize * settings.lineHeight;
   switch (action) {
     case 'play':
       P.play();
       break;
     case 'pause':
       P.pause();
+      break;
+    case 'nudgeDown':
+      P.scrub(nudgePx);
+      break;
+    case 'nudgeUp':
+      P.scrub(-nudgePx);
+      break;
+    case 'jumpEnd':
+      P.tweenTo(P.max);
       break;
     case 'scrollDown':
       P.hold(1);
@@ -446,6 +518,179 @@ function handleRemote(action) {
     default:
       (ACTIONS[action] || ACTIONS.none).run();
   }
+}
+
+// ---------- Remote control (this instance driving another) ----------
+
+function renderRemoteList(list) {
+  els.remoteList.innerHTML = '';
+  if (!list.length) {
+    const none = document.createElement('div');
+    none.className = 'none';
+    none.textContent = 'No instances found yet — make sure LabPrompter is running on the other Mac.';
+    els.remoteList.appendChild(none);
+    return;
+  }
+  for (const svc of list) {
+    const item = document.createElement('div');
+    item.className = 'remote-item';
+    const name = document.createElement('span');
+    name.className = 'remote-name';
+    name.textContent = svc.name;
+    const addr = document.createElement('span');
+    addr.className = 'remote-addr';
+    addr.textContent = `${svc.host}:${svc.port}`;
+    item.append(name, addr);
+    item.addEventListener('click', () => connectRemote(svc.host, svc.port));
+    els.remoteList.appendChild(item);
+  }
+}
+
+async function openRemoteModal() {
+  els.remoteModalStatus.textContent = '';
+  renderRemoteList(await lab.remote.services());
+  els.remoteModal.hidden = false;
+}
+
+function closeRemoteModal() {
+  els.remoteModal.hidden = true;
+}
+
+function connectRemote(host, port) {
+  els.remoteModalStatus.textContent = `Connecting to ${host}…`;
+  lab.remote.connect({ host, port });
+}
+
+function enterRemoteView(status) {
+  rc.mode = true;
+  closeRemoteModal();
+  closeSettings();
+  els.remoteTarget.textContent = `Controlling ${status.name || status.host}`;
+  document.body.dataset.view = 'remote';
+  applyRemoteDoc();
+  applyRemoteState();
+  rescaleRemote();
+  cancelAnimationFrame(rc.raf);
+  const tick = () => {
+    if (!rc.mode) return;
+    drawRemote();
+    rc.raf = requestAnimationFrame(tick);
+  };
+  rc.raf = requestAnimationFrame(tick);
+}
+
+function exitRemoteView() {
+  if (!rc.mode) return;
+  rc.mode = false;
+  cancelAnimationFrame(rc.raf);
+  document.body.dataset.view = 'editor';
+  els.scriptBody.focus();
+}
+
+function applyRemoteDoc() {
+  const d = rc.doc;
+  if (!d) return;
+  const s = d.s;
+  els.remoteScreen.style.width = d.vw + 'px';
+  els.remoteScreen.style.height = d.vh + 'px';
+  els.remoteScreen.style.setProperty('--pfs', s.fontSize + 'px');
+  els.remoteScreen.style.setProperty('--plh', s.lineHeight);
+  els.remoteScreen.style.setProperty('--ptw', s.textWidthPct + '%');
+  els.remoteScreen.classList.toggle('remote-caps', !!s.allCaps);
+  els.remoteLine.style.top = s.readingLinePct + '%';
+  renderChunks(d.body, els.remoteContent);
+  rescaleRemote();
+}
+
+function applyRemoteState() {
+  const st = rc.state;
+  const presenting = !!(st && st.presenting);
+  els.remoteOverlay.classList.toggle('gone', presenting);
+  els.remoteBadge.textContent = !st ? '' : presenting ? (st.playing ? '▶ rolling' : '❚❚ paused') : 'in editor';
+  els.remoteSpeed.textContent = st && st.baseSpeedPct != null ? `speed ${st.baseSpeedPct}%` : '';
+  els.btnRemotePresent.textContent = presenting ? 'Exit Present' : 'Present ▸';
+}
+
+function rescaleRemote() {
+  const d = rc.doc;
+  if (!d) return;
+  const sw = els.remoteStage.clientWidth;
+  const sh = els.remoteStage.clientHeight;
+  const k = Math.min(sw / d.vw, sh / d.vh) || 1;
+  els.remoteScreen.style.transform = `scale(${k})`;
+  els.remoteScreen.style.left = Math.max(0, (sw - d.vw * k) / 2) + 'px';
+  els.remoteScreen.style.top = Math.max(0, (sh - d.vh * k) / 2) + 'px';
+}
+
+// Extrapolate between 10Hz state packets so the mirror scrolls smoothly.
+function drawRemote() {
+  const d = rc.doc;
+  const st = rc.state;
+  if (!d || !st || !st.presenting) return;
+  const dt = (performance.now() - rc.stateAt) / 1000;
+  let pos = st.pos + (st.speed || 0) * Math.min(dt, 1);
+  pos = Math.max(0, Math.min(st.max || 0, pos));
+  const lineY = d.vh * (d.s.readingLinePct / 100);
+  els.remoteContent.style.transform = `translate3d(0, ${(lineY - pos).toFixed(2)}px, 0)`;
+  els.remoteProgressFill.style.width = (st.max ? (pos / st.max) * 100 : 0) + '%';
+}
+
+function handleRemoteKeys(e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const send = (action) => lab.remote.send({ t: 'cmd', action });
+  switch (e.key) {
+    case ' ':
+      send('playPause');
+      break;
+    case 'ArrowDown':
+      send(e.shiftKey ? 'eyeLineDown' : 'nudgeDown');
+      break;
+    case 'ArrowUp':
+      send(e.shiftKey ? 'eyeLineUp' : 'nudgeUp');
+      break;
+    case 'ArrowRight':
+      send('speedUp');
+      break;
+    case 'ArrowLeft':
+      send('speedDown');
+      break;
+    case 'PageDown':
+    case ']':
+      send('nextMarker');
+      break;
+    case 'PageUp':
+    case '[':
+      send('prevMarker');
+      break;
+    case 'Home':
+      send('jumpTop');
+      break;
+    case 'End':
+      send('jumpEnd');
+      break;
+    case '-':
+    case '_':
+      send('fontDown');
+      break;
+    case '=':
+    case '+':
+      send('fontUp');
+      break;
+    case 'c':
+    case 'C':
+      send('toggleCaps');
+      break;
+    case 'r':
+    case 'R':
+      send('toggleReverse');
+      break;
+    case 'Escape':
+      lab.remote.disconnect();
+      break;
+    default:
+      return;
+  }
+  e.preventDefault();
 }
 
 // ---------- Shuttle ----------
@@ -469,6 +714,13 @@ function renderShuttleStatus(st) {
 }
 
 function handleShuttle(ev) {
+  if (rc.mode) {
+    // Local control surface drives the remote instance instead.
+    if (ev.type === 'shuttle') lab.remote.send({ t: 'shuttle', v: ev.value });
+    else if (ev.type === 'jog') lab.remote.send({ t: 'jog', d: ev.delta });
+    else if (ev.type === 'button') lab.remote.send({ t: 'button', b: ev.button, down: ev.down });
+    return;
+  }
   if (ev.type === 'shuttle') {
     P.setShuttle(ev.value);
   } else if (ev.type === 'jog') {
@@ -531,11 +783,19 @@ function wireEvents() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (document.body.dataset.view === 'present') {
+    const view = document.body.dataset.view;
+    if (view === 'present') {
       P.handleKey(e);
       return;
     }
-    if (e.key === 'Escape') closeSettings();
+    if (view === 'remote') {
+      handleRemoteKeys(e);
+      return;
+    }
+    if (e.key === 'Escape') {
+      closeSettings();
+      closeRemoteModal();
+    }
   });
 
   window.addEventListener('beforeunload', () => {
@@ -557,6 +817,53 @@ function wireEvents() {
   lab.shuttle.onEvent(handleShuttle);
   lab.shuttle.onStatus(renderShuttleStatus);
   lab.onRemote(handleRemote);
+
+  els.btnRemote.addEventListener('click', () => {
+    if (els.remoteModal.hidden) openRemoteModal();
+    else closeRemoteModal();
+  });
+  els.btnCloseRemote.addEventListener('click', closeRemoteModal);
+  els.remoteModal.addEventListener('click', (e) => {
+    if (e.target === els.remoteModal) closeRemoteModal();
+  });
+  els.btnRemoteConnectManual.addEventListener('click', () => {
+    const host = els.remoteHost.value.trim();
+    if (host) connectRemote(host);
+  });
+  els.remoteHost.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') els.btnRemoteConnectManual.click();
+  });
+  els.btnRemoteDisconnect.addEventListener('click', () => lab.remote.disconnect());
+  els.btnRemotePresent.addEventListener('click', () => {
+    const presenting = rc.state && rc.state.presenting;
+    lab.remote.send({ t: 'cmd', action: presenting ? 'exitPresent' : 'enterPresent' });
+  });
+
+  lab.remote.onServices((list) => {
+    if (!els.remoteModal.hidden) renderRemoteList(list);
+  });
+  lab.remote.onStatus((status) => {
+    if (status.connected) {
+      enterRemoteView(status);
+    } else {
+      if (rc.mode) exitRemoteView();
+      els.remoteModalStatus.textContent = status.error ? `Connection failed: ${status.error}` : '';
+      rc.doc = null;
+      rc.state = null;
+    }
+  });
+  lab.remote.onDoc((doc) => {
+    rc.doc = doc;
+    if (rc.mode) applyRemoteDoc();
+  });
+  lab.remote.onState((state) => {
+    rc.state = state;
+    rc.stateAt = performance.now();
+    if (rc.mode) applyRemoteState();
+  });
+  window.addEventListener('resize', () => {
+    if (rc.mode) rescaleRemote();
+  });
 
   window.addEventListener('error', (e) => lab.reportError(String(e.message || e.error)));
   window.addEventListener('unhandledrejection', (e) => lab.reportError('unhandled rejection: ' + String(e.reason)));
@@ -586,6 +893,7 @@ async function init() {
   setSaveState('');
 
   renderShuttleStatus(await lab.shuttle.status());
+  pushState();
   lab.ready();
 }
 

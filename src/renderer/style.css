@@ -477,6 +477,139 @@ body[data-view="present"] #editorView { display: none; }
   background: rgba(255, 168, 54, 0.5);
 }
 
+/* ---------- Remote control view ---------- */
+
+#remoteView {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: none;
+  z-index: 40;
+  flex-direction: column;
+}
+body[data-view="remote"] #remoteView { display: flex; }
+body[data-view="remote"] #editorView { display: none; }
+
+.remote-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+body.mac .remote-bar { padding-left: 84px; }
+.remote-bar button { -webkit-app-region: no-drag; }
+
+.remote-target { font-weight: 600; font-size: 13px; }
+.remote-target::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3fb950;
+  margin-right: 7px;
+}
+
+.remote-badge { color: var(--muted); font-size: 12px; }
+.remote-speed { color: var(--muted); font-size: 12px; }
+
+#remoteStage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #08090b;
+  overflow: hidden;
+}
+
+#remoteScreen {
+  position: absolute;
+  transform-origin: top left;
+  background: #000;
+  box-shadow: 0 0 0 1px var(--border), 0 18px 60px rgba(0, 0, 0, 0.5);
+}
+#remoteViewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+#remoteContent {
+  position: relative;
+  will-change: transform;
+}
+#remoteScreen.remote-caps .prompt-text { text-transform: uppercase; }
+
+#remoteLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  pointer-events: none;
+}
+#remoteLine::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: -1px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 168, 54, 0.45);
+}
+
+#remoteProgress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.07);
+}
+#remoteProgressFill { height: 100%; width: 0; background: rgba(255, 168, 54, 0.5); }
+
+#remoteOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 9, 11, 0.75);
+  color: var(--muted);
+  font-size: 15px;
+  z-index: 5;
+}
+#remoteOverlay.gone { display: none; }
+
+.remote-list { display: flex; flex-direction: column; gap: 4px; }
+.remote-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--panel-2);
+}
+.remote-item:hover { border-color: var(--accent); }
+.remote-item .remote-name { font-weight: 600; font-size: 12.5px; flex: 1; }
+.remote-item .remote-addr { color: var(--muted); font-size: 11px; }
+.remote-list .none { color: var(--muted); font-size: 12px; padding: 6px 2px; }
+
+.text-input {
+  flex: 1;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  user-select: text;
+}
+.text-input:focus { outline: none; border-color: var(--accent); }
+
 /* ---------- Settings modal ---------- */
 
 .modal-overlay {
