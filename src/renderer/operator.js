@@ -4,7 +4,7 @@
 // operator-only extras the talent screen never shows: upcoming lines, section
 // position, live speed, and controller status.
 
-import { renderChunks, MARKER_RE } from './render.js';
+import { renderChunks, measureLines } from './render.js';
 
 const lab = window.lab;
 const $ = (id) => document.getElementById(id);
@@ -24,6 +24,9 @@ const els = {
   upcoming: $('opUpcoming'),
   shuttle: $('opShuttle'),
   measure: $('opMeasure'),
+  btnEdit: $('btnOpEdit'),
+  editPane: $('opEditPane'),
+  editor: $('opEditor'),
 };
 
 // 100% speed = 600 px/s (see present.js FULL_SPEED_PX); ÷6 turns px/s into %.
@@ -48,52 +51,11 @@ function applyDoc() {
   els.measure.style.width = d.vw + 'px';
   els.line.style.top = s.readingLinePct + '%';
   renderChunks(d.body, els.content);
-  buildMeasure(d.body);
+  op.lines = measureLines(d.body, els.measure);
   collectGeometry();
+  syncEditor();
   rescale();
   op.lastPanelAt = 0;
-}
-
-// Lay the script out one source line per element, in the exact geometry the
-// Present window uses (same width, font, and chunk/break structure as
-// renderChunks), so a scroll position maps back to a line of text.
-function buildMeasure(body) {
-  els.measure.innerHTML = '';
-  const root = document.createElement('div');
-  root.className = 'prompt-text';
-  els.measure.appendChild(root);
-  const text = (body || '').replace(/\r\n?/g, '\n');
-  if (!text.trim()) return;
-
-  let buf = [];
-  const flush = () => {
-    const lines = buf;
-    buf = [];
-    while (lines.length && lines[0] === '') lines.shift();
-    while (lines.length && lines[lines.length - 1] === '') lines.pop();
-    if (!lines.length) return;
-    const chunk = document.createElement('div');
-    chunk.className = 'chunk';
-    for (const line of lines) {
-      const p = document.createElement('div');
-      p.className = 'pline';
-      p.textContent = line;
-      chunk.appendChild(p);
-    }
-    root.appendChild(chunk);
-  };
-
-  for (const line of text.split('\n')) {
-    if (MARKER_RE.test(line)) {
-      flush();
-      const gap = document.createElement('div');
-      gap.className = 'break-gap';
-      root.appendChild(gap);
-    } else {
-      buf.push(line);
-    }
-  }
-  flush();
 }
 
 function snippet(text) {
@@ -102,10 +64,6 @@ function snippet(text) {
 }
 
 function collectGeometry() {
-  op.lines = [...els.measure.querySelectorAll('.pline')].map((el) => ({
-    top: el.offsetTop,
-    text: el.textContent,
-  }));
   op.sections = [...els.content.querySelectorAll('.jump')].map((el) => ({
     top: el.offsetTop,
     snippet: snippet(el.textContent),
@@ -196,9 +154,47 @@ function updatePanel(pos, st) {
   }
 }
 
+// ---------- Live editing (changes flow to the presenting window) ----------
+
+let editTimer = null;
+
+function toggleEditPane(show) {
+  const on = show != null ? show : els.editPane.hidden;
+  els.editPane.hidden = !on;
+  els.btnEdit.classList.toggle('primary', on);
+  if (on) {
+    syncEditor();
+    els.editor.focus();
+  }
+  requestAnimationFrame(rescale);
+}
+
+// Keep the textarea in step with the script, but never yank it out from
+// under the operator's cursor: while it has focus, it IS the source.
+function syncEditor() {
+  if (!op.doc) return;
+  if (document.activeElement === els.editor) return;
+  if (els.editor.value !== op.doc.body) els.editor.value = op.doc.body;
+}
+
+function flushEdit() {
+  clearTimeout(editTimer);
+  editTimer = null;
+  if (op.doc && els.editor.value !== op.doc.body) lab.operator.edit(els.editor.value);
+}
+
 // ---------- Controls (same keys as Present Mode, routed to the main window) ----------
 
 function handleKeys(e) {
+  if (e.target === els.editor) {
+    if (e.key === 'Escape') {
+      flushEdit();
+      els.editor.blur();
+      toggleEditPane(false);
+      e.preventDefault();
+    }
+    return;
+  }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const send = (action) => lab.operator.cmd(action);
   switch (e.key) {
@@ -247,6 +243,10 @@ function handleKeys(e) {
     case 'R':
       send('toggleReverse');
       break;
+    case 'e':
+    case 'E':
+      toggleEditPane();
+      break;
     case 'Escape':
       send('exitPresent');
       break;
@@ -292,6 +292,12 @@ function init() {
   lab.shuttle.status().then(renderShuttleStatus);
 
   els.btnExit.addEventListener('click', () => lab.operator.cmd('exitPresent'));
+  els.btnEdit.addEventListener('click', () => toggleEditPane());
+  els.editor.addEventListener('input', () => {
+    clearTimeout(editTimer);
+    editTimer = setTimeout(flushEdit, 250);
+  });
+  els.editor.addEventListener('blur', flushEdit);
   document.addEventListener('keydown', handleKeys);
   window.addEventListener('resize', rescale);
   window.addEventListener('error', (e) => lab.reportError(String(e.message || e.error)));

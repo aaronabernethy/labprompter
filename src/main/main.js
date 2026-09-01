@@ -266,6 +266,10 @@ ipcMain.on('operator:cmd', (e, action) => {
   if (typeof action === 'string' && win) win.webContents.send('remote:action', action);
 });
 
+ipcMain.on('operator:edit', (e, body) => {
+  if (typeof body === 'string' && win) win.webContents.send('live:edit', body);
+});
+
 // ---- IPC + wiring: network remote control ----
 let lastDoc = null;
 

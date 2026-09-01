@@ -753,16 +753,56 @@ body.mac .remote-bar { padding-left: 84px; }
 body.op-caps .prompt-text,
 body.op-caps #opUpcoming { text-transform: uppercase; }
 
+#opEditPane {
+  width: 380px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: #101216;
+  border-left: 1px solid var(--border);
+}
+.op-edit-head {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+#opEditor {
+  flex: 1;
+  min-height: 0;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 14px;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  caret-color: var(--accent);
+  user-select: text;
+}
+#opEditor::-webkit-scrollbar { width: 12px; }
+#opEditor::-webkit-scrollbar-thumb { background: #2c333d; border-radius: 6px; border: 3px solid #101216; }
+#opEditor::-webkit-scrollbar-track { background: transparent; }
+
 /* Off-screen layout used to map scroll position back to script lines. */
-#opMeasure {
+.line-measure {
   position: absolute;
   left: -100000px;
   top: 0;
+  width: 100%;
   visibility: hidden;
   pointer-events: none;
 }
-#opMeasure .pline { white-space: pre-wrap; overflow-wrap: break-word; }
-#opMeasure .pline:empty::before { content: "\200B"; }
+.line-measure .pline { white-space: pre-wrap; overflow-wrap: break-word; }
+.line-measure .pline:empty::before { content: "\200B"; }
 
 /* ---------- Settings modal ---------- */
 

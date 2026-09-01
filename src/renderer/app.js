@@ -1,4 +1,4 @@
-import { renderChunks, buildBackdropHTML, countWords, fmtDuration, fmtTime } from './render.js';
+import { renderChunks, buildBackdropHTML, countWords, fmtDuration, fmtTime, measureLines } from './render.js';
 import { Prompter, JOG_BASE_PX } from './present.js';
 
 const lab = window.lab;
@@ -25,6 +25,7 @@ const els = {
   presentView: $('presentView'),
   promptViewport: $('promptViewport'),
   promptContent: $('promptContent'),
+  editMeasure: $('editMeasure'),
   readingLine: $('readingLine'),
   pauseBadge: $('pauseBadge'),
   progressFill: $('progressFill'),
@@ -486,6 +487,47 @@ function exitPresent() {
   els.scriptBody.focus();
 }
 
+// ---------- Live editing while presenting ----------
+
+// A body edit arriving from the Operator View: update the script exactly as
+// if it were typed in the editor, and if Present Mode is up, reflow the
+// prompter in place without disturbing the talent's reading position.
+function applyLiveEdit(newBody) {
+  if (!current || typeof newBody !== 'string') return;
+  const oldBody = current.body;
+  if (newBody === oldBody) return;
+  if (P.active) reflowPresent(oldBody, newBody);
+  current.body = newBody;
+  els.scriptBody.value = newBody;
+  markDirty();
+  updateBackdrop();
+  schedulePreview();
+  pushDoc();
+}
+
+// Re-render the prompt content keeping the reading line on the same text:
+// an edit below the reading position changes nothing above it, so the
+// position stays; an edit above shifts everything under it by the height
+// delta, so the position shifts with it (anchoring the unchanged tail).
+function reflowPresent(oldBody, newBody) {
+  const oldLines = measureLines(oldBody, els.editMeasure);
+  const a = oldBody.replace(/\r\n?/g, '\n').split('\n');
+  const b = newBody.replace(/\r\n?/g, '\n').split('\n');
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  const changed = oldLines.find((l) => l.line >= i);
+  const changeY = changed ? changed.top : P.max;
+  const oldMax = P.max;
+  const oldPos = P.pos;
+  P.tween = null;
+  renderChunks(newBody, els.promptContent);
+  P.measure();
+  P.pos = changeY < oldPos ? oldPos + (P.max - oldMax) : oldPos;
+  P.pos = Math.max(0, Math.min(P.max, P.pos));
+  P.apply();
+  els.editMeasure.innerHTML = '';
+}
+
 // Commands arriving over the local control API (Stream Deck, curl, …).
 function handleRemote(action) {
   if (action === 'togglePresent') {
@@ -830,6 +872,7 @@ function wireEvents() {
   lab.shuttle.onEvent(handleShuttle);
   lab.shuttle.onStatus(renderShuttleStatus);
   lab.onRemote(handleRemote);
+  lab.onLiveEdit(applyLiveEdit);
 
   els.btnRemote.addEventListener('click', () => {
     if (els.remoteModal.hidden) openRemoteModal();

@@ -15,6 +15,7 @@
       <span id="opBadge" class="remote-badge"></span>
       <div class="spacer"></div>
       <span id="opSpeed" class="remote-speed"></span>
+      <button id="btnOpEdit" class="btn">Edit script</button>
       <button id="btnOpExit" class="btn danger">Exit Present</button>
     </header>
 
@@ -26,6 +27,11 @@
           <div id="opProgress"><div id="opProgressFill"></div></div>
         </div>
         <div id="opOverlay">Waiting for Present Mode…</div>
+      </div>
+
+      <div id="opEditPane" hidden>
+        <div class="op-edit-head">Live edit — changes hit the prompter as you type</div>
+        <textarea id="opEditor" spellcheck="false"></textarea>
       </div>
 
       <aside class="op-side">
@@ -47,11 +53,11 @@
         <i class="dot"></i><span class="label">No controller</span>
       </span>
       <div class="spacer"></div>
-      <span class="hint">Same keys as Present Mode:&ensp;Space play/pause&ensp;·&ensp;↑↓ nudge&ensp;·&ensp;⇧↑↓ eye line&ensp;·&ensp;←→ speed&ensp;·&ensp;PgUp/PgDn markers&ensp;·&ensp;−/= size&ensp;·&ensp;C caps&ensp;·&ensp;R reverse&ensp;·&ensp;Esc exit</span>
+      <span class="hint">Same keys as Present Mode:&ensp;Space play/pause&ensp;·&ensp;↑↓ nudge&ensp;·&ensp;⇧↑↓ eye line&ensp;·&ensp;←→ speed&ensp;·&ensp;PgUp/PgDn markers&ensp;·&ensp;−/= size&ensp;·&ensp;C caps&ensp;·&ensp;R reverse&ensp;·&ensp;E edit&ensp;·&ensp;Esc exit</span>
     </footer>
   </div>
 
-  <div id="opMeasure"></div>
+  <div id="opMeasure" class="line-measure"></div>
 
   <script type="module" src="operator.js"></script>
 </body>
