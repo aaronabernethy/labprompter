@@ -24,38 +24,136 @@ let blockerId = null;
 let operatorWin = null;
 let operatorClosing = false;
 
-function setupAutoUpdate() {
-  if (!app.isPackaged || dev.smoke || dev.shot) return;
+// ---- Updates ----
+// Everything the updater does is appended to userData/update.log so a
+// studio-machine failure can be diagnosed after the fact.
+
+const updater = { instance: null, downloaded: null };
+
+function updateLog(level, ...args) {
+  const line = `[${new Date().toISOString()}] ${level} ${args.join(' ')}\n`;
+  try {
+    fs.appendFileSync(path.join(app.getPath('userData'), 'update.log'), line);
+  } catch {
+    // logging must never break the app
+  }
+}
+
+function initUpdater() {
+  if (!app.isPackaged || dev.smoke || dev.shot) return null;
+  if (updater.instance) return updater.instance;
   let autoUpdater;
   try {
     ({ autoUpdater } = require('electron-updater'));
   } catch (err) {
     console.error('[update] electron-updater unavailable:', err.message);
-    return;
+    return null;
   }
   autoUpdater.autoDownload = true;
-  autoUpdater.on('error', (err) => console.error('[update]', err ? err.message : 'unknown error'));
+  autoUpdater.logger = {
+    info: (...a) => updateLog('info', ...a),
+    warn: (...a) => updateLog('warn', ...a),
+    error: (...a) => updateLog('error', ...a),
+    debug: (...a) => updateLog('debug', ...a),
+  };
+  autoUpdater.on('error', (err) => updateLog('error', 'event:', err ? err.stack || err.message : 'unknown'));
   autoUpdater.on('update-downloaded', (info) => {
-    // Never pop a dialog onto the prompter mid-read; wait until the
-    // operator is back in the editor.
-    const offer = () => {
-      if (control.getState().presenting) {
-        setTimeout(offer, 30000);
-        return;
-      }
-      const choice = dialog.showMessageBoxSync(win, {
-        type: 'info',
-        buttons: ['Install & Restart', 'Later'],
-        defaultId: 0,
-        cancelId: 1,
-        message: `LabPrompter ${info.version} is ready to install.`,
-        detail: 'The update downloaded in the background. Install it now? "Later" installs it the next time you quit.',
-      });
-      if (choice === 0) autoUpdater.quitAndInstall();
-    };
-    offer();
+    updater.downloaded = info;
+    offerInstall(info);
   });
-  autoUpdater.checkForUpdates().catch((err) => console.error('[update] check failed:', err.message));
+  updater.instance = autoUpdater;
+  return autoUpdater;
+}
+
+function installDownloadedUpdate() {
+  updateLog('info', 'user chose Install & Restart; invoking quitAndInstall');
+  // quitAndInstall can silently no-op when called from inside a dialog
+  // callback or when a window-all-closed handler re-enters quit; defer it
+  // and drop our handler first.
+  setImmediate(() => {
+    try {
+      app.removeAllListeners('window-all-closed');
+      updater.instance.quitAndInstall(false, true);
+    } catch (err) {
+      updateLog('error', 'quitAndInstall threw:', err.stack || err.message);
+    }
+  });
+}
+
+function offerInstall(info) {
+  // Never pop a dialog onto the prompter mid-read; wait until the
+  // operator is back in the editor.
+  if (control.getState().presenting) {
+    setTimeout(() => offerInstall(info), 30000);
+    return;
+  }
+  const choice = dialog.showMessageBoxSync(win, {
+    type: 'info',
+    buttons: ['Install & Restart', 'Later'],
+    defaultId: 0,
+    cancelId: 1,
+    message: `LabPrompter ${info.version} is ready to install.`,
+    detail: 'The update downloaded in the background. Install it now? "Later" installs it the next time you quit.',
+  });
+  if (choice === 0) installDownloadedUpdate();
+}
+
+function setupAutoUpdate() {
+  const u = initUpdater();
+  if (!u) return;
+  u.checkForUpdates().catch((err) => updateLog('error', 'startup check failed:', err.message));
+}
+
+function cmpVersions(a, b) {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+  }
+  return 0;
+}
+
+function manualUpdateCheck() {
+  if (!app.isPackaged) {
+    dialog.showMessageBox(win, {
+      type: 'info',
+      message: 'Updates apply to the installed app.',
+      detail: 'This copy is running from source; pull the repo instead.',
+    });
+    return;
+  }
+  const u = initUpdater();
+  if (!u) return;
+  if (updater.downloaded) {
+    offerInstall(updater.downloaded);
+    return;
+  }
+  updateLog('info', 'manual check requested');
+  u.checkForUpdates()
+    .then((res) => {
+      const latest = res && res.updateInfo ? res.updateInfo.version : null;
+      if (latest && cmpVersions(latest, app.getVersion()) > 0) {
+        dialog.showMessageBox(win, {
+          type: 'info',
+          message: `LabPrompter ${latest} is available.`,
+          detail: "It's downloading in the background — you'll be asked to install once it's ready.",
+        });
+      } else {
+        dialog.showMessageBox(win, {
+          type: 'info',
+          message: "You're up to date.",
+          detail: `LabPrompter ${app.getVersion()} is the latest version.`,
+        });
+      }
+    })
+    .catch((err) => {
+      updateLog('error', 'manual check failed:', err.stack || err.message);
+      dialog.showMessageBox(win, {
+        type: 'warning',
+        message: 'Could not check for updates.',
+        detail: String((err && err.message) || err),
+      });
+    });
 }
 
 function createWindow() {
@@ -186,6 +284,10 @@ function buildMenu() {
       submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }],
     },
     { role: 'windowMenu' },
+    {
+      role: 'help',
+      submenu: [{ label: 'Check for Updates…', click: () => manualUpdateCheck() }],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
