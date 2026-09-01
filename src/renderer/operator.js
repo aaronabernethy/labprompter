@@ -4,7 +4,7 @@
 // operator-only extras the talent screen never shows: upcoming lines, section
 // position, live speed, and controller status.
 
-import { renderChunks, measureLines } from './render.js';
+import { renderChunks, measureLines, applyLineVars } from './render.js';
 
 const lab = window.lab;
 const $ = (id) => document.getElementById(id);
@@ -50,6 +50,7 @@ function applyDoc() {
   els.screen.classList.toggle('no-progress', !s.showProgress);
   els.measure.style.width = d.vw + 'px';
   els.line.style.top = s.readingLinePct + '%';
+  applyLineVars(els.line, s);
   renderChunks(d.body, els.content);
   op.lines = measureLines(d.body, els.measure);
   collectGeometry();

@@ -44,8 +44,11 @@
 
       <section class="preview-pane">
         <div class="preview-head">Prompter preview</div>
-        <div id="previewScroll" class="preview-scroll">
-          <div id="previewContent" class="prompt-text preview-content"></div>
+        <div class="preview-stage">
+          <div id="previewScroll" class="preview-scroll">
+            <div id="previewContent" class="prompt-text preview-content"></div>
+          </div>
+          <div id="previewLine" class="reading-line"></div>
         </div>
         <div class="preview-tools">
           <label class="size-label">Text size
@@ -81,7 +84,7 @@
       <div id="remoteStage">
         <div id="remoteScreen">
           <div id="remoteViewport"><div id="remoteContent" class="prompt-text"></div></div>
-          <div id="remoteLine"></div>
+          <div id="remoteLine" class="reading-line"></div>
           <div id="remoteProgress"><div id="remoteProgressFill"></div></div>
         </div>
         <div id="remoteOverlay">Waiting for Present Mode on the remote…</div>
@@ -103,7 +106,7 @@
       <div id="promptContent" class="prompt-text"></div>
       <div id="editMeasure" class="line-measure"></div>
     </div>
-    <div id="readingLine"></div>
+    <div id="readingLine" class="reading-line"></div>
     <div class="edge-fade top"></div>
     <div class="edge-fade bottom"></div>
     <div id="pauseBadge">❚❚</div>
@@ -158,6 +161,33 @@
             <span>Reading line (eye line)</span>
             <input type="range" id="setLinePct" min="10" max="70" step="1" />
             <output data-out="setLinePct"></output>
+          </label>
+          <label class="row">
+            <span>Reading line style</span>
+            <select id="setLineStyle">
+              <option value="line">Thin line over the text</option>
+              <option value="bar">Bar behind the text</option>
+            </select>
+          </label>
+          <div class="row">
+            <span>Line color</span>
+            <div id="lineSwatches" class="swatches"></div>
+            <input type="color" id="setLineColor" title="Custom color" />
+          </div>
+          <label class="row" id="rowLineThick">
+            <span>Line thickness</span>
+            <input type="range" id="setLineThick" min="1" max="12" step="1" />
+            <output data-out="setLineThick"></output>
+          </label>
+          <label class="row" id="rowBarHeight" hidden>
+            <span>Bar height</span>
+            <input type="range" id="setBarHeight" min="30" max="160" step="5" />
+            <output data-out="setBarHeight"></output>
+          </label>
+          <label class="row">
+            <span>Line intensity</span>
+            <input type="range" id="setLineOpacity" min="10" max="100" step="5" />
+            <output data-out="setLineOpacity"></output>
           </label>
           <label class="row check"><input type="checkbox" id="setShowProgress" /> Show progress bar</label>
         </section>

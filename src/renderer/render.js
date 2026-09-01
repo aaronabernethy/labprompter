@@ -112,3 +112,24 @@ export function fmtTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
+
+// Styles a .reading-line element (talent screen, preview, Operator View,
+// remote mirror) from prompter settings. Older peers may send docs without
+// the line-style keys, so every value falls back to the classic thin line.
+export function applyLineVars(el, s) {
+  const bar = s.lineStyle === 'bar';
+  const lineHeightPx = s.fontSize * s.lineHeight;
+  const thickness = bar
+    ? lineHeightPx * ((s.barHeightPct != null ? s.barHeightPct : 90) / 100)
+    : s.lineThicknessPx != null
+      ? s.lineThicknessPx
+      : 2;
+  // The thin line centers on the eye-line marker; the bar centers on the
+  // line of text being read, which starts AT the marker.
+  const offset = bar ? (lineHeightPx - thickness) / 2 : -thickness / 2;
+  el.classList.toggle('bar', bar);
+  el.style.setProperty('--rlc', s.lineColor || '#ffa836');
+  el.style.setProperty('--rlo', ((s.lineOpacity != null ? s.lineOpacity : 45) / 100).toFixed(2));
+  el.style.setProperty('--rlt', thickness.toFixed(1) + 'px');
+  el.style.setProperty('--rlOff', offset.toFixed(1) + 'px');
+}

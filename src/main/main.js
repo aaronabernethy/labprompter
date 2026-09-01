@@ -145,8 +145,28 @@ function closeOperatorWindow() {
 
 function buildMenu() {
   const isMac = process.platform === 'darwin';
+  const settingsItem = { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => sendMenu('settings') };
   const template = [
-    ...(isMac ? [{ role: 'appMenu' }] : []),
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' },
+              { type: 'separator' },
+              settingsItem,
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
+          },
+        ]
+      : []),
     {
       label: 'File',
       submenu: [
@@ -154,8 +174,10 @@ function buildMenu() {
         { label: 'Import…', accelerator: 'CmdOrCtrl+O', click: () => sendMenu('import') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => sendMenu('save') },
+        { label: 'Duplicate Script', accelerator: 'CmdOrCtrl+Shift+S', click: () => sendMenu('duplicate') },
         { type: 'separator' },
         { label: 'Start Presenting', accelerator: 'CmdOrCtrl+Return', click: () => sendMenu('present') },
+        ...(isMac ? [{ type: 'separator' }, { role: 'close' }] : [settingsItem]),
       ],
     },
     { role: 'editMenu' },

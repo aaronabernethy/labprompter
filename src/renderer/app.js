@@ -1,4 +1,4 @@
-import { renderChunks, buildBackdropHTML, countWords, fmtDuration, fmtTime, measureLines } from './render.js';
+import { renderChunks, buildBackdropHTML, countWords, fmtDuration, fmtTime, measureLines, applyLineVars } from './render.js';
 import { Prompter, JOG_BASE_PX } from './present.js';
 
 const lab = window.lab;
@@ -19,6 +19,7 @@ const els = {
   btnInsertBreak: $('btnInsertBreak'),
   stats: $('stats'),
   previewContent: $('previewContent'),
+  previewLine: $('previewLine'),
   fontSize: $('fontSize'),
   fontSizeVal: $('fontSizeVal'),
   shuttleStatus: $('shuttleStatus'),
@@ -98,6 +99,11 @@ function pushDoc() {
       lineHeight: settings.lineHeight,
       textWidthPct: settings.textWidthPct,
       readingLinePct: settings.readingLinePct,
+      lineStyle: settings.lineStyle,
+      lineColor: settings.lineColor,
+      lineThicknessPx: settings.lineThicknessPx,
+      barHeightPct: settings.barHeightPct,
+      lineOpacity: settings.lineOpacity,
       allCaps: settings.allCaps,
       showProgress: settings.showProgress,
     },
@@ -176,6 +182,9 @@ function applyPromptVars() {
   r.setProperty('--plh', settings.lineHeight);
   r.setProperty('--ptw', settings.textWidthPct + '%');
   els.readingLine.style.top = settings.readingLinePct + '%';
+  els.previewLine.style.top = settings.readingLinePct + '%';
+  applyLineVars(els.readingLine, settings);
+  applyLineVars(els.previewLine, settings);
   els.presentView.classList.toggle('no-progress', !settings.showProgress);
   document.body.classList.toggle('all-caps', settings.allCaps);
 }
@@ -193,6 +202,9 @@ const SETTING_CONTROLS = [
   { id: 'setLineHeight', key: 'lineHeight', fmt: (v) => Number(v).toFixed(2) },
   { id: 'setTextWidth', key: 'textWidthPct', fmt: (v) => v + '%' },
   { id: 'setLinePct', key: 'readingLinePct', fmt: (v) => v + '%' },
+  { id: 'setLineThick', key: 'lineThicknessPx', fmt: (v) => v + ' px' },
+  { id: 'setBarHeight', key: 'barHeightPct', fmt: (v) => v + '%' },
+  { id: 'setLineOpacity', key: 'lineOpacity', fmt: (v) => v + '%' },
   { id: 'setBaseSpeed', key: 'baseSpeedPct', fmt: (v) => v + '%' },
   { id: 'setMaxShuttle', key: 'shuttleSens', fmt: (v) => v + '%' },
   { id: 'setJogStep', key: 'jogSens', fmt: (v) => v + '%' },
@@ -211,7 +223,29 @@ function syncSettingsUI() {
   $('setAutoMove').checked = settings.autoMoveDisplay;
   $('setAllowRemote').checked = settings.allowRemote;
   $('capsToggle').checked = settings.allCaps;
+  $('setLineStyle').value = settings.lineStyle === 'bar' ? 'bar' : 'line';
+  $('setLineColor').value = settings.lineColor;
   syncDisplayModeUI();
+  syncLineStyleUI();
+}
+
+const LINE_SWATCHES = ['#ffa836', '#ff4b4b', '#ffd60a', '#3fd268', '#38d1e0', '#e35bd8', '#ffffff'];
+
+function syncLineStyleUI() {
+  const bar = settings.lineStyle === 'bar';
+  $('rowLineThick').hidden = bar;
+  $('rowBarHeight').hidden = !bar;
+  for (const b of document.querySelectorAll('#lineSwatches .swatch')) {
+    b.classList.toggle('selected', b.dataset.color.toLowerCase() === (settings.lineColor || '').toLowerCase());
+  }
+}
+
+function setLineColor(color) {
+  settings.lineColor = color;
+  $('setLineColor').value = color;
+  syncLineStyleUI();
+  applyPromptVars();
+  persistSettings();
 }
 
 function syncDisplayModeUI() {
@@ -251,6 +285,24 @@ function wireSettings() {
     persistSettings();
   });
   $('capsToggle').addEventListener('change', (e) => setAllCaps(e.target.checked));
+  $('setLineStyle').addEventListener('change', (e) => {
+    settings.lineStyle = e.target.value;
+    syncLineStyleUI();
+    applyPromptVars();
+    persistSettings();
+  });
+  $('setLineColor').addEventListener('input', (e) => setLineColor(e.target.value));
+  const swatches = $('lineSwatches');
+  for (const color of LINE_SWATCHES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'swatch';
+    b.dataset.color = color;
+    b.style.background = color;
+    b.title = color;
+    b.addEventListener('click', () => setLineColor(color));
+    swatches.appendChild(b);
+  }
 }
 
 // ---------- Button mapping ----------
@@ -327,12 +379,17 @@ function flushSave() {
   }
 }
 
+function updateWindowTitle() {
+  document.title = current ? `${current.title || 'Untitled'} — LabPrompter` : 'LabPrompter';
+}
+
 function openScript(script) {
   flushSave();
   current = script;
   els.scriptTitle.value = script.title;
   els.scriptBody.value = script.body;
   els.scriptBody.scrollTop = 0;
+  updateWindowTitle();
   refreshEditorViews();
   settings.lastScriptId = script.id;
   persistSettings();
@@ -352,6 +409,10 @@ async function refreshLibrary() {
     const title = document.createElement('div');
     title.className = 'script-title';
     title.textContent = item.title || 'Untitled';
+    title.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      startRename(item, title);
+    });
     const meta = document.createElement('div');
     meta.className = 'script-meta';
     meta.textContent = `${item.words} words · ${fmtTime(item.updatedAt)}`;
@@ -394,6 +455,48 @@ async function refreshLibrary() {
   }
 }
 
+// Finder-style rename: double-click the name, type, Enter commits, Esc cancels.
+function startRename(item, titleEl) {
+  const input = document.createElement('input');
+  input.className = 'rename-input';
+  input.value = item.title || 'Untitled';
+  input.spellcheck = false;
+  titleEl.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const commit = async () => {
+    if (done) return;
+    done = true;
+    const name = input.value.trim() || 'Untitled';
+    if (name !== item.title) {
+      if (current && current.id === item.id) {
+        current.title = name;
+        els.scriptTitle.value = name;
+        updateWindowTitle();
+        markDirty();
+        flushSave();
+      } else {
+        const s = await lab.scripts.get(item.id);
+        if (s) await lab.scripts.save({ id: s.id, title: name, body: s.body });
+      }
+    }
+    refreshLibrary();
+  };
+  const cancel = () => {
+    if (done) return;
+    done = true;
+    refreshLibrary();
+  };
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') commit();
+    else if (e.key === 'Escape') cancel();
+  });
+  input.addEventListener('blur', () => commit());
+  input.addEventListener('click', (e) => e.stopPropagation());
+}
+
 async function newScript() {
   const s = await lab.scripts.create({ title: 'Untitled' });
   openScript(s);
@@ -406,6 +509,15 @@ async function importScript() {
   if (!res) return;
   const s = await lab.scripts.create(res);
   openScript(s);
+}
+
+async function duplicateScript() {
+  if (!current) return;
+  flushSave();
+  const s = await lab.scripts.create({ title: current.title + ' copy', body: current.body });
+  openScript(s);
+  els.scriptTitle.focus();
+  els.scriptTitle.select();
 }
 
 // ---------- Editor rendering ----------
@@ -701,6 +813,7 @@ function applyRemoteDoc() {
   els.remoteScreen.style.setProperty('--ptw', s.textWidthPct + '%');
   els.remoteScreen.classList.toggle('remote-caps', !!s.allCaps);
   els.remoteLine.style.top = s.readingLinePct + '%';
+  applyLineVars(els.remoteLine, s);
   renderChunks(d.body, els.remoteContent);
   syncRemoteEditor();
   rescaleRemote();
@@ -879,7 +992,17 @@ function wireEvents() {
 
   els.scriptTitle.addEventListener('input', () => {
     current.title = els.scriptTitle.value;
+    updateWindowTitle();
     markDirty();
+  });
+  // Enter commits a rename, per the HIG.
+  els.scriptTitle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      flushSave();
+      els.scriptTitle.blur();
+      els.scriptBody.focus();
+    }
   });
 
   els.btnInsertBreak.addEventListener('click', insertBreak);
@@ -922,12 +1045,16 @@ function wireEvents() {
   });
 
   lab.onMenu((action) => {
-    if (P.active) return;
+    if (P.active || rc.mode) return;
     if (action === 'new') newScript();
     else if (action === 'import') importScript();
     else if (action === 'save') {
       flushSave();
       doSave();
+    } else if (action === 'duplicate') duplicateScript();
+    else if (action === 'settings') {
+      if (els.settingsModal.hidden) openSettings();
+      else closeSettings();
     } else if (action === 'present') enterPresent();
   });
 

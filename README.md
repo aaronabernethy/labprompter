@@ -43,13 +43,18 @@ Remote Control from a second Mac (below) is unaffected by the display mode and r
 - **Script editor** — plain-text editing, so pasting from Word/Docs/Notes strips all formatting automatically. Import from `.txt`, `.md`, and `.docx`. Live prompter preview with adjustable text size and an ALL CAPS toggle.
 - **Jump markers** — put `---` (or `[BREAK]`) alone on a line to mark a jump point. Markers show as amber pills in the editor and as labeled dividers in the preview; in Present Mode they're invisible jump targets.
 - **Script library** — scripts autosave locally as flat JSON files (`~/Library/Application Support/labprompter/scripts/`). Open, rename, and delete from the Library panel.
-- **Present Mode** — fullscreen, black background, white text, zero chrome. A subtle reading line marks the current position, with an optional thin progress bar along the bottom. The cursor auto-hides, and the display is kept awake while presenting.
+- **Present Mode** — fullscreen, black background, white text, zero chrome. A reading line marks the current position, with an optional thin progress bar along the bottom. The cursor auto-hides, and the display is kept awake while presenting.
+- **Reading line styles** — if the thin line doesn't read on your glass, Settings offers a **bar behind the text** style that frames the whole line being spoken, color swatches plus a custom color picker, thickness/height, and intensity. Styling previews live in the editor and carries through to the Operator View and remote mirrors.
 - **Extended display mode** — for setups where Screen 2 *extends* the desktop instead of mirroring it: Present opens on the prompter display while a separate **Operator View** window stays on Screen 1 with a live mirror, upcoming lines, section position, live speed, controller status, and all Present Mode controls — plus **live script editing** that updates the teleprompter as you type, without exiting Present Mode or moving the talent's reading position.
 - **Shuttle control** — spring-loaded shuttle ring sets scroll speed proportionally (gentle twist = slow crawl, full twist = fast), the free-spinning jog dial nudges/scrubs, and all buttons are remappable in Settings.
 - **Stream Deck plugin** — a bundled plugin (`streamdeck/`) puts prompter keys on an Elgato Stream Deck: Play, Pause, hold-to-scroll up/down, Top, Previous/Next Section, Text Bigger/Smaller, speed, eye line, ALL CAPS, and Present Mode toggle.
 - **Network remote control** — a second Mac running LabPrompter can drive the studio machine. Instances broadcast themselves over Bonjour; click **Remote**, pick the studio Mac, and your keyboard and shuttle control its prompter while a scaled live mirror shows exactly what the talent sees — with the same live script editing as the Operator View. A dead-man safety zeroes the shuttle if the connection drops.
 - **Local control API** — anything that can send an HTTP request can drive the prompter: `POST http://127.0.0.1:43717/command` with a plain-text command name; `GET /state` returns `{ presenting, playing }`. Bound to localhost only.
 - **Keyboard fallback** — everything works without any controller.
+
+## Editor shortcuts
+
+Standard macOS conventions apply: `⌘N` new script, `⌘O` import, `⌘S` save, `⌘⇧S` duplicate script, `⌘,` settings, `⌘↩` start presenting, `⌘W` close. The window title shows the current script. Rename from the title field (Enter commits) or **double-click a script's name in the Library** to rename it in place — Enter commits, Esc cancels.
 
 ## Controls in Present Mode
 
