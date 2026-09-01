@@ -512,6 +512,7 @@ body.mac .remote-bar { padding-left: 84px; }
   background: #3fb950;
   margin-right: 7px;
 }
+.remote-target.lost::before { background: #d29922; }
 
 .remote-badge { color: var(--muted); font-size: 12px; }
 .remote-speed { color: var(--muted); font-size: 12px; }

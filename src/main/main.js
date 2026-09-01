@@ -200,15 +200,22 @@ ipcMain.handle('scripts:import', async () => {
 });
 
 // ---- IPC: settings ----
-ipcMain.handle('settings:get', () => storage.getSettings());
+// lastRemote is main-process state (the auto-reconnect target); keep it out
+// of the renderer's settings round-trip so a stale copy can't resurrect it.
+ipcMain.handle('settings:get', () => {
+  const { lastRemote, ...rest } = storage.getSettings();
+  return rest;
+});
 ipcMain.handle('settings:set', (e, patch) => {
+  if (patch) delete patch.lastRemote;
   const before = storage.getSettings().allowRemote;
   const merged = storage.setSettings(patch);
   if (merged.allowRemote !== before) {
     if (merged.allowRemote) startRemoteServer();
     else remote.stopServer();
   }
-  return merged;
+  const { lastRemote, ...rest } = merged;
+  return rest;
 });
 
 // ---- IPC: present mode ----
@@ -296,8 +303,54 @@ ipcMain.on('remote:doc', (e, doc) => {
   sendOperator('operator:doc', doc);
 });
 
+// ---- Auto-reconnect to the last remote host ----
+// The target is remembered on every successful connect and forgotten on a
+// deliberate disconnect, so a crash or restart on either end self-heals:
+// launch and connection loss retry every few seconds, and the host
+// reappearing in Bonjour (matched by instance id, so IP changes don't
+// matter) reconnects immediately.
+
+// Never auto-connect before the renderer is listening: a "connected" status
+// sent into a not-yet-ready window is lost, leaving a link the UI knows
+// nothing about.
+let rendererReady = false;
+
+const reconnect = { timer: null, lastTriedHost: null };
+
+function cancelReconnect() {
+  clearTimeout(reconnect.timer);
+  reconnect.timer = null;
+  reconnect.lastTriedHost = null;
+}
+
+function attemptReconnect() {
+  clearTimeout(reconnect.timer);
+  reconnect.timer = null;
+  const target = storage.getSettings().lastRemote;
+  if (!rendererReady || !target || remote.isConnected()) return;
+  const svc = remote.listDiscovered().find((s) => target.id && s.id === target.id);
+  reconnect.lastTriedHost = svc ? svc.host : target.host;
+  remote.connect(reconnect.lastTriedHost, (svc ? svc.port : target.port) || undefined, clientCallbacks);
+}
+
 const clientCallbacks = {
   onStatus: (s) => {
+    if (s.connected) {
+      cancelReconnect();
+      storage.setSettings({ lastRemote: { host: s.host, port: s.port, name: s.name, id: s.id } });
+    } else if (s.error === 'connected to self') {
+      cancelReconnect();
+      storage.setSettings({ lastRemote: null });
+    } else {
+      const target = storage.getSettings().lastRemote;
+      // Retry only failures of the remembered target, not a manual attempt
+      // at some other host the user is trying from the modal.
+      if (target && (s.host === target.host || s.host === reconnect.lastTriedHost)) {
+        clearTimeout(reconnect.timer);
+        reconnect.timer = setTimeout(attemptReconnect, 5000);
+        s = { ...s, reconnecting: true, targetName: target.name || target.host };
+      }
+    }
     if (win) win.webContents.send('remote:client-status', s);
   },
   onDoc: (d) => {
@@ -310,13 +363,22 @@ const clientCallbacks = {
 
 ipcMain.handle('remote:list', () => remote.listDiscovered());
 ipcMain.handle('remote:connect', (e, { host, port }) => remote.connect(host, port, clientCallbacks));
-ipcMain.handle('remote:disconnect', () => remote.disconnect());
+ipcMain.handle('remote:disconnect', () => {
+  // Deliberate disconnect: forget the host so auto-reconnect stays quiet.
+  cancelReconnect();
+  storage.setSettings({ lastRemote: null });
+  return remote.disconnect();
+});
 ipcMain.on('remote:send', (e, msg) => remote.clientSend(msg));
 
 ipcMain.on('renderer:ready', async () => {
+  rendererReady = true;
   if (dev.connect && !dev.smoke) {
     const [host, port] = dev.connect.split(':');
     remote.connect(host, port ? Number(port) : undefined, clientCallbacks);
+  } else if (!dev.smoke && !dev.shot && storage.getSettings().lastRemote) {
+    // Pick the last session's host back up automatically.
+    attemptReconnect();
   }
   if (dev.smoke) {
     const http = require('http');
@@ -369,6 +431,12 @@ app.whenReady().then(() => {
   if (storage.getSettings().allowRemote && !dev.smoke) startRemoteServer();
   remote.startDiscovery((list) => {
     if (win) win.webContents.send('remote:services', list);
+    // The remembered host just (re)appeared — reconnect right away, at
+    // whatever address it advertises now.
+    const target = storage.getSettings().lastRemote;
+    if (target && !remote.isConnected() && !dev.smoke && !dev.shot && !dev.connect) {
+      if (list.some((s) => target.id && s.id === target.id)) attemptReconnect();
+    }
   });
   control.start({
     onCommand: (action) => {
@@ -393,6 +461,7 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  cancelReconnect();
   shuttle.stop();
   control.stop();
   remote.stopAll();

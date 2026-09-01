@@ -623,6 +623,8 @@ function enterRemoteView(status) {
   rc.mode = true;
   closeRemoteModal();
   closeSettings();
+  els.remoteOverlay.textContent = 'Waiting for Present Mode on the remote…';
+  els.remoteTarget.classList.remove('lost');
   els.remoteTarget.textContent = `Controlling ${status.name || status.host}`;
   document.body.dataset.view = 'remote';
   applyRemoteDoc();
@@ -966,10 +968,31 @@ function wireEvents() {
   });
   lab.remote.onStatus((status) => {
     if (status.connected) {
+      if (P.active) {
+        // A stale auto-reconnect must never hijack a machine that is
+        // presenting locally; drop the link and forget the host.
+        lab.remote.disconnect();
+        return;
+      }
       enterRemoteView(status);
-    } else {
-      if (rc.mode) exitRemoteView();
-      els.remoteModalStatus.textContent = status.error ? `Connection failed: ${status.error}` : '';
+      return;
+    }
+    if (status.reconnecting && rc.mode) {
+      // Connection lost mid-session: hold the view, main keeps retrying.
+      rc.state = null;
+      applyRemoteState();
+      els.remoteTarget.classList.add('lost');
+      els.remoteBadge.textContent = 'connection lost';
+      els.remoteOverlay.textContent = `Connection lost — reconnecting to ${status.targetName}…`;
+      return;
+    }
+    if (rc.mode) exitRemoteView();
+    els.remoteModalStatus.textContent = status.reconnecting
+      ? `Reconnecting to ${status.targetName}…`
+      : status.error
+        ? `Connection failed: ${status.error}`
+        : '';
+    if (!status.reconnecting) {
       rc.doc = null;
       rc.state = null;
     }

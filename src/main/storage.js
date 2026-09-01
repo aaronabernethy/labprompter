@@ -17,6 +17,7 @@ const DEFAULTS = {
   wpm: 150,
   allowRemote: true,
   lastScriptId: null,
+  lastRemote: null,
   buttonMap: {
     1: 'jumpTop',
     2: 'prevMarker',
