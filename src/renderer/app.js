@@ -203,9 +203,17 @@ function syncSettingsUI() {
     if (out) out.textContent = c.fmt(settings[c.key]);
   }
   $('setShowProgress').checked = settings.showProgress;
+  $('setDisplayMode').value = settings.displayMode === 'extended' ? 'extended' : 'mirrored';
   $('setAutoMove').checked = settings.autoMoveDisplay;
   $('setAllowRemote').checked = settings.allowRemote;
   $('capsToggle').checked = settings.allCaps;
+  syncDisplayModeUI();
+}
+
+function syncDisplayModeUI() {
+  const extended = settings.displayMode === 'extended';
+  $('rowAutoMove').hidden = extended;
+  $('extendedModeNote').hidden = !extended;
 }
 
 function wireSettings() {
@@ -223,6 +231,11 @@ function wireSettings() {
   $('setShowProgress').addEventListener('change', (e) => {
     settings.showProgress = e.target.checked;
     applyPromptVars();
+    persistSettings();
+  });
+  $('setDisplayMode').addEventListener('change', (e) => {
+    settings.displayMode = e.target.value;
+    syncDisplayModeUI();
     persistSettings();
   });
   $('setAutoMove').addEventListener('change', (e) => {

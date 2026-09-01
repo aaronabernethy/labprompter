@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+  <title>LabPrompter — Operator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="operator">
+
+  <div id="opView">
+    <header class="remote-bar">
+      <div class="brand">LabPrompter</div>
+      <span class="op-title">Operator View</span>
+      <span id="opBadge" class="remote-badge"></span>
+      <div class="spacer"></div>
+      <span id="opSpeed" class="remote-speed"></span>
+      <button id="btnOpExit" class="btn danger">Exit Present</button>
+    </header>
+
+    <div class="op-main">
+      <div id="opStage">
+        <div id="opScreen">
+          <div id="opViewport"><div id="opContent" class="prompt-text"></div></div>
+          <div id="opLine"></div>
+          <div id="opProgress"><div id="opProgressFill"></div></div>
+        </div>
+        <div id="opOverlay">Waiting for Present Mode…</div>
+      </div>
+
+      <aside class="op-side">
+        <section>
+          <h3>Position</h3>
+          <div id="opSection"></div>
+          <div id="opNextSection"></div>
+          <div id="opProgressText"></div>
+        </section>
+        <section class="op-upcoming-section">
+          <h3>Up next</h3>
+          <div id="opUpcoming"></div>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="statusbar">
+      <span id="opShuttle" class="shuttle-status">
+        <i class="dot"></i><span class="label">No controller</span>
+      </span>
+      <div class="spacer"></div>
+      <span class="hint">Same keys as Present Mode:&ensp;Space play/pause&ensp;·&ensp;↑↓ nudge&ensp;·&ensp;⇧↑↓ eye line&ensp;·&ensp;←→ speed&ensp;·&ensp;PgUp/PgDn markers&ensp;·&ensp;−/= size&ensp;·&ensp;C caps&ensp;·&ensp;R reverse&ensp;·&ensp;Esc exit</span>
+    </footer>
+  </div>
+
+  <div id="opMeasure"></div>
+
+  <script type="module" src="operator.js"></script>
+</body>
+</html>

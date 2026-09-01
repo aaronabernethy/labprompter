@@ -152,7 +152,18 @@
             <output data-out="setLinePct"></output>
           </label>
           <label class="row check"><input type="checkbox" id="setShowProgress" /> Show progress bar</label>
-          <label class="row check"><input type="checkbox" id="setAutoMove" /> Present on secondary display automatically</label>
+        </section>
+        <section>
+          <h3>Displays</h3>
+          <label class="row">
+            <span>Display mode</span>
+            <select id="setDisplayMode">
+              <option value="mirrored">Mirrored — Screen 2 mirrors the Prompter</option>
+              <option value="extended">Extended — separate operator view</option>
+            </select>
+          </label>
+          <label class="row check" id="rowAutoMove"><input type="checkbox" id="setAutoMove" /> Present on secondary display automatically</label>
+          <p class="muted" id="extendedModeNote" hidden>Present opens fullscreen on the display connected to the Prompter XL, while an Operator View window — live mirror, upcoming lines, and all Present Mode controls — stays on this screen.</p>
           <label class="row check"><input type="checkbox" id="setAllowRemote" /> Allow network remote control</label>
         </section>
         <section>

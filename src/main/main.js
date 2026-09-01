@@ -21,6 +21,8 @@ const dev = {
 let win = null;
 let savedBounds = null;
 let blockerId = null;
+let operatorWin = null;
+let operatorClosing = false;
 
 function setupAutoUpdate() {
   if (!app.isPackaged || dev.smoke || dev.shot) return;
@@ -69,6 +71,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // This window runs the prompter engine; keep it ticking even if the
+      // Operator View (or anything else) occludes it while presenting.
+      backgroundThrottling: false,
     },
   });
 
@@ -79,6 +84,7 @@ function createWindow() {
   win.on('closed', () => {
     stopBlocker();
     win = null;
+    closeOperatorWindow();
   });
 
   win.webContents.on('render-process-gone', (e, details) => {
@@ -91,6 +97,50 @@ function createWindow() {
 
 function sendMenu(action) {
   if (win) win.webContents.send('menu:action', action);
+}
+
+// ---- Operator View (Extended display mode) ----
+// In Extended Mode the main window becomes the talent-facing Present screen,
+// and this second window stays on the operator's display, rendering the same
+// main-process state the remote-control mirror consumes.
+
+function sendOperator(channel, data) {
+  if (operatorWin && !operatorWin.isDestroyed()) operatorWin.webContents.send(channel, data);
+}
+
+function openOperatorWindow(bounds) {
+  if (operatorWin) return;
+  operatorClosing = false;
+  operatorWin = new BrowserWindow({
+    x: bounds ? bounds.x : undefined,
+    y: bounds ? bounds.y : undefined,
+    width: bounds ? bounds.width : 1100,
+    height: bounds ? bounds.height : 700,
+    minWidth: 720,
+    minHeight: 480,
+    backgroundColor: '#0f1114',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  operatorWin.on('closed', () => {
+    operatorWin = null;
+    // The operator dismissing their window means "stop presenting" — unless
+    // it was closed as part of Present Mode already exiting.
+    if (!operatorClosing && win && !win.isDestroyed()) {
+      win.webContents.send('remote:action', 'exitPresent');
+    }
+  });
+  operatorWin.loadFile(path.join(__dirname, '..', 'renderer', 'operator.html'));
+}
+
+function closeOperatorWindow() {
+  if (!operatorWin) return;
+  operatorClosing = true;
+  operatorWin.close();
 }
 
 function buildMenu() {
@@ -167,7 +217,10 @@ ipcMain.handle('present:enter', () => {
   const { screen } = require('electron');
   savedBounds = win.getBounds();
   const settings = storage.getSettings();
-  if (settings.autoMoveDisplay) {
+  const extended = settings.displayMode === 'extended';
+  // Extended Mode always presents on the display wired to the prompter; the
+  // auto-move toggle only applies to the mirrored setup.
+  if (extended || settings.autoMoveDisplay) {
     const primary = screen.getPrimaryDisplay();
     const external = screen.getAllDisplays().find((d) => d.id !== primary.id);
     if (external) win.setBounds(external.bounds);
@@ -175,14 +228,17 @@ ipcMain.handle('present:enter', () => {
   if (process.platform === 'darwin') win.setSimpleFullScreen(true);
   else win.setFullScreen(true);
   if (blockerId === null) blockerId = powerSaveBlocker.start('prevent-display-sleep');
+  if (extended) openOperatorWindow(savedBounds);
 });
 
 ipcMain.handle('present:exit', () => {
   if (!win || dev.smoke || dev.shot) return;
+  closeOperatorWindow();
   if (process.platform === 'darwin') win.setSimpleFullScreen(false);
   else win.setFullScreen(false);
   if (savedBounds) win.setBounds(savedBounds);
   stopBlocker();
+  win.focus();
 });
 
 // ---- IPC: shuttle ----
@@ -197,6 +253,17 @@ ipcMain.on('renderer:error', (e, msg) => {
 ipcMain.on('state:update', (e, patch) => {
   control.setState(patch);
   remote.broadcast({ t: 'state', ...patch });
+  sendOperator('operator:state', patch);
+});
+
+// ---- IPC: Operator View window ----
+ipcMain.on('operator:ready', () => {
+  if (lastDoc) sendOperator('operator:doc', lastDoc);
+  sendOperator('operator:state', control.getState());
+});
+
+ipcMain.on('operator:cmd', (e, action) => {
+  if (typeof action === 'string' && win) win.webContents.send('remote:action', action);
 });
 
 // ---- IPC + wiring: network remote control ----
@@ -218,6 +285,7 @@ function startRemoteServer() {
 ipcMain.on('remote:doc', (e, doc) => {
   lastDoc = doc;
   remote.broadcast({ t: 'doc', ...doc });
+  sendOperator('operator:doc', doc);
 });
 
 const clientCallbacks = {
@@ -305,6 +373,7 @@ app.whenReady().then(() => {
     },
     onStatus: (st) => {
       if (win) win.webContents.send('shuttle:status', st);
+      sendOperator('shuttle:status', st);
     },
   });
   if (dev.smoke) {

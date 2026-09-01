@@ -15,12 +15,30 @@ LabPrompter fixes that with a simple trick: the present view carries a thin **re
 3. Edit your script on Screen 1, then hit **Present**. LabPrompter moves itself fullscreen onto the secondary display automatically (toggleable in Settings). Present Mode contains nothing operator-only, so it's always safe for the talent to see.
 4. Plug in the Contour ShuttleXpress. No Contour driver needed — LabPrompter reads the device directly over USB HID. **If you have Contour's own driver app installed, quit it**, otherwise its keystroke mappings will fire on top of LabPrompter's.
 
+This mirrored arrangement is the default (**Settings → Displays → Display mode → Mirrored**).
+
+## Extended Display Setup
+
+If you'd rather keep Screen 2 as a real, separate display — System Settings → Displays → select the Prompter, set it to **Extend** (not Mirror) — switch **Settings → Displays → Display mode** to **Extended**. Now the talent's screen and the operator's screen are genuinely different, so the operator view can show more than the talent ever sees.
+
+Hitting **Present** in Extended mode opens two windows:
+
+- **Present window** — exactly the same talent-safe Present Mode as always (fullscreen, black, white text, reading line, no chrome), placed on the display connected to the Prompter XL.
+- **Operator View window** — stays on Screen 1, where the editor was. It shows a scaled live mirror of the prompter (reading line, progress bar, play state — the same rendering the network remote control uses, driven directly from local state instead of over the LAN), plus operator-only extras: the next few upcoming lines greyed out, your current section and the next one, a live speed readout, and the controller connection status.
+
+The Operator View accepts **all the same keyboard controls as Present Mode** (Space, arrows, PgUp/PgDn, and so on — Esc exits), and the shuttle controller works no matter which window has focus — you never need to look at the second screen. Closing the Operator View window also exits Present Mode.
+
+Differences from Mirrored mode at a glance: in Mirrored mode the operator watches the exact talent feed (nothing operator-only can appear, since the talent sees the same pixels); in Extended mode the operator gets the richer Operator View while the talent still gets the plain Present window. The *Present on secondary display automatically* toggle only applies to Mirrored mode — Extended mode always presents on the secondary display.
+
+Remote Control from a second Mac (below) is unaffected by the display mode and remains the right tool when the assistant sits at a genuinely separate machine.
+
 ## Features
 
 - **Script editor** — plain-text editing, so pasting from Word/Docs/Notes strips all formatting automatically. Import from `.txt`, `.md`, and `.docx`. Live prompter preview with adjustable text size and an ALL CAPS toggle.
 - **Jump markers** — put `---` (or `[BREAK]`) alone on a line to mark a jump point. Markers show as amber pills in the editor and as labeled dividers in the preview; in Present Mode they're invisible jump targets.
 - **Script library** — scripts autosave locally as flat JSON files (`~/Library/Application Support/labprompter/scripts/`). Open, rename, and delete from the Library panel.
 - **Present Mode** — fullscreen, black background, white text, zero chrome. A subtle reading line marks the current position, with an optional thin progress bar along the bottom. The cursor auto-hides, and the display is kept awake while presenting.
+- **Extended display mode** — for setups where Screen 2 *extends* the desktop instead of mirroring it: Present opens on the prompter display while a separate **Operator View** window stays on Screen 1 with a live mirror, upcoming lines, section position, live speed, controller status, and all Present Mode controls.
 - **Shuttle control** — spring-loaded shuttle ring sets scroll speed proportionally (gentle twist = slow crawl, full twist = fast), the free-spinning jog dial nudges/scrubs, and all buttons are remappable in Settings.
 - **Stream Deck plugin** — a bundled plugin (`streamdeck/`) puts prompter keys on an Elgato Stream Deck: Play, Pause, hold-to-scroll up/down, Top, Previous/Next Section, Text Bigger/Smaller, speed, eye line, ALL CAPS, and Present Mode toggle.
 - **Network remote control** — a second Mac running LabPrompter can drive the studio machine. Instances broadcast themselves over Bonjour; click **Remote**, pick the studio Mac, and your keyboard and shuttle control its prompter while a scaled live mirror shows exactly what the talent sees. A dead-man safety zeroes the shuttle if the connection drops.

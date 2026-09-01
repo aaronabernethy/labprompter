@@ -10,6 +10,7 @@ const DEFAULTS = {
   readingLinePct: 35,
   showProgress: true,
   autoMoveDisplay: true,
+  displayMode: 'mirrored',
   baseSpeedPct: 10,
   shuttleSens: 100,
   jogSens: 100,
