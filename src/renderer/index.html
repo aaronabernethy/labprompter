@@ -73,27 +73,35 @@
       <span id="remoteBadge" class="remote-badge"></span>
       <div class="spacer"></div>
       <span id="remoteSpeed" class="remote-speed"></span>
+      <button id="btnRemoteEdit" class="btn">Edit script</button>
       <button id="btnRemotePresent" class="btn">Present&ensp;▸</button>
       <button id="btnRemoteDisconnect" class="btn danger">Disconnect</button>
     </header>
-    <div id="remoteStage">
-      <div id="remoteScreen">
-        <div id="remoteViewport"><div id="remoteContent" class="prompt-text"></div></div>
-        <div id="remoteLine"></div>
-        <div id="remoteProgress"><div id="remoteProgressFill"></div></div>
+    <div class="remote-main">
+      <div id="remoteStage">
+        <div id="remoteScreen">
+          <div id="remoteViewport"><div id="remoteContent" class="prompt-text"></div></div>
+          <div id="remoteLine"></div>
+          <div id="remoteProgress"><div id="remoteProgressFill"></div></div>
+        </div>
+        <div id="remoteOverlay">Waiting for Present Mode on the remote…</div>
       </div>
-      <div id="remoteOverlay">Waiting for Present Mode on the remote…</div>
+      <div id="remoteEditPane" class="edit-pane" hidden>
+        <div class="edit-head">Live edit — changes hit the studio prompter as you type</div>
+        <textarea id="remoteEditor" spellcheck="false"></textarea>
+      </div>
     </div>
     <footer class="statusbar remote-foot">
       <span id="remoteShuttleNote"></span>
       <div class="spacer"></div>
-      <span class="hint">Your keyboard &amp; shuttle drive the remote prompter&ensp;·&ensp;Esc disconnects</span>
+      <span class="hint">Your keyboard &amp; shuttle drive the remote prompter&ensp;·&ensp;E edit&ensp;·&ensp;Esc disconnects</span>
     </footer>
   </div>
 
   <div id="presentView">
     <div id="promptViewport">
       <div id="promptContent" class="prompt-text"></div>
+      <div id="editMeasure" class="line-measure"></div>
     </div>
     <div id="readingLine"></div>
     <div class="edge-fade top"></div>
@@ -152,7 +160,18 @@
             <output data-out="setLinePct"></output>
           </label>
           <label class="row check"><input type="checkbox" id="setShowProgress" /> Show progress bar</label>
-          <label class="row check"><input type="checkbox" id="setAutoMove" /> Present on secondary display automatically</label>
+        </section>
+        <section>
+          <h3>Displays</h3>
+          <label class="row">
+            <span>Display mode</span>
+            <select id="setDisplayMode">
+              <option value="mirrored">Mirrored — Screen 2 mirrors the Prompter</option>
+              <option value="extended">Extended — separate operator view</option>
+            </select>
+          </label>
+          <label class="row check" id="rowAutoMove"><input type="checkbox" id="setAutoMove" /> Present on secondary display automatically</label>
+          <p class="muted" id="extendedModeNote" hidden>Present opens fullscreen on the display connected to the Prompter XL, while an Operator View window — live mirror, upcoming lines, and all Present Mode controls — stays on this screen.</p>
           <label class="row check"><input type="checkbox" id="setAllowRemote" /> Allow network remote control</label>
         </section>
         <section>

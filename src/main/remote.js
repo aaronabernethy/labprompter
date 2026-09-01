@@ -3,7 +3,7 @@
 // newline-delimited JSON over TCP; discovery is Bonjour/mDNS.
 //
 // Client -> server: hello, ping, cmd {action}, shuttle {v}, jog {d},
-//                   button {b, down}
+//                   button {b, down}, edit {body}
 // Server -> client: welcome, pong, doc {title, body, s, vw, vh},
 //                   state {presenting, playing, pos, max, speed, baseSpeedPct}
 //
@@ -107,6 +107,11 @@ function startServer(cb) {
             server.cb.onInput({ type: 'button', button: m.b | 0, down: m.down !== false });
           }
           break;
+        case 'edit':
+          if (server.cb.onEdit && typeof m.body === 'string' && m.body.length <= 2e5) {
+            server.cb.onEdit(m.body);
+          }
+          break;
       }
     });
     const drop = () => {
@@ -181,6 +186,7 @@ function startDiscovery(onChange) {
       name: s.name,
       host: ipv4 || s.host,
       port: s.port || REMOTE_PORT,
+      id: (s.txt && s.txt.id) || null,
     });
     emit();
   });
@@ -200,7 +206,8 @@ const client = { socket: null, connected: false, pingTimer: null };
 
 function connect(host, port, cb) {
   disconnect();
-  const socket = net.connect({ host, port: port || REMOTE_PORT });
+  const p = port || REMOTE_PORT;
+  const socket = net.connect({ host, port: p });
   socket.setNoDelay(true);
   client.socket = socket;
   let failed = false;
@@ -208,14 +215,19 @@ function connect(host, port, cb) {
     if (failed || client.socket !== socket) return;
     failed = true;
     disconnect();
-    cb.onStatus({ connected: false, error: msg });
+    cb.onStatus({ connected: false, error: msg, host, port: p });
   };
   socket.on('connect', () => sendMsg(socket, { t: 'hello', name: hostname() }));
   attachJsonLines(socket, (m) => {
     switch (m.t) {
       case 'welcome':
+        if (m.id === INSTANCE_ID) {
+          // Someone pointed this instance at itself; a control loop helps nobody.
+          fail('connected to self');
+          break;
+        }
         client.connected = true;
-        cb.onStatus({ connected: true, name: m.name, host });
+        cb.onStatus({ connected: true, name: m.name, id: m.id, host, port: p });
         break;
       case 'doc':
         cb.onDoc(m);
@@ -237,6 +249,10 @@ function connect(host, port, cb) {
 
 function clientSend(obj) {
   if (client.socket && client.connected) sendMsg(client.socket, obj);
+}
+
+function isConnected() {
+  return client.connected;
 }
 
 function disconnect() {
@@ -266,6 +282,7 @@ module.exports = {
   listDiscovered,
   connect,
   clientSend,
+  isConnected,
   disconnect,
   stopAll,
   REMOTE_PORT,

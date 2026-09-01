@@ -38,6 +38,14 @@ contextBridge.exposeInMainWorld('lab', {
     send: (msg) => ipcRenderer.send('remote:send', msg),
     pushDoc: (doc) => ipcRenderer.send('remote:doc', doc),
   },
+  operator: {
+    ready: () => ipcRenderer.send('operator:ready'),
+    cmd: (action) => ipcRenderer.send('operator:cmd', action),
+    edit: (body) => ipcRenderer.send('operator:edit', body),
+    onDoc: (cb) => ipcRenderer.on('operator:doc', (e, d) => cb(d)),
+    onState: (cb) => ipcRenderer.on('operator:state', (e, s) => cb(s)),
+  },
+  onLiveEdit: (cb) => ipcRenderer.on('live:edit', (e, body) => cb(body)),
   reportError: (msg) => ipcRenderer.send('renderer:error', msg),
   ready: () => ipcRenderer.send('renderer:ready'),
 });
