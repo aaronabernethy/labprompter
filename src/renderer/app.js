@@ -51,6 +51,9 @@ const els = {
   remoteLine: $('remoteLine'),
   remoteProgressFill: $('remoteProgressFill'),
   remoteOverlay: $('remoteOverlay'),
+  btnRemoteEdit: $('btnRemoteEdit'),
+  remoteEditPane: $('remoteEditPane'),
+  remoteEditor: $('remoteEditor'),
 };
 
 let settings = null;
@@ -634,12 +637,55 @@ function enterRemoteView(status) {
   rc.raf = requestAnimationFrame(tick);
 }
 
+// User-initiated disconnect: remote.disconnect() silences the socket's
+// close/error events (so the "connection lost" status never fires), which
+// means the view must be exited from here, not from the status callback.
+function disconnectRemote() {
+  lab.remote.disconnect();
+  rc.doc = null;
+  rc.state = null;
+  exitRemoteView();
+}
+
 function exitRemoteView() {
   if (!rc.mode) return;
   rc.mode = false;
   cancelAnimationFrame(rc.raf);
+  els.remoteEditPane.hidden = true;
+  els.btnRemoteEdit.classList.remove('primary');
   document.body.dataset.view = 'editor';
   els.scriptBody.focus();
+}
+
+// ---- Live editing of the studio script from here ----
+
+let remoteEditTimer = null;
+
+function toggleRemoteEditPane(show) {
+  const on = show != null ? show : els.remoteEditPane.hidden;
+  els.remoteEditPane.hidden = !on;
+  els.btnRemoteEdit.classList.toggle('primary', on);
+  if (on) {
+    syncRemoteEditor();
+    els.remoteEditor.focus();
+  }
+  requestAnimationFrame(rescaleRemote);
+}
+
+// Track the studio's script, but never rewrite the textarea under the
+// assistant's cursor: while it has focus, it IS the source.
+function syncRemoteEditor() {
+  if (!rc.doc) return;
+  if (document.activeElement === els.remoteEditor) return;
+  if (els.remoteEditor.value !== rc.doc.body) els.remoteEditor.value = rc.doc.body;
+}
+
+function flushRemoteEdit() {
+  clearTimeout(remoteEditTimer);
+  remoteEditTimer = null;
+  if (rc.doc && els.remoteEditor.value !== rc.doc.body) {
+    lab.remote.send({ t: 'edit', body: els.remoteEditor.value });
+  }
 }
 
 function applyRemoteDoc() {
@@ -654,6 +700,7 @@ function applyRemoteDoc() {
   els.remoteScreen.classList.toggle('remote-caps', !!s.allCaps);
   els.remoteLine.style.top = s.readingLinePct + '%';
   renderChunks(d.body, els.remoteContent);
+  syncRemoteEditor();
   rescaleRemote();
 }
 
@@ -691,6 +738,15 @@ function drawRemote() {
 }
 
 function handleRemoteKeys(e) {
+  if (e.target === els.remoteEditor) {
+    if (e.key === 'Escape') {
+      flushRemoteEdit();
+      els.remoteEditor.blur();
+      toggleRemoteEditPane(false);
+      e.preventDefault();
+    }
+    return;
+  }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const send = (action) => lab.remote.send({ t: 'cmd', action });
   switch (e.key) {
@@ -739,8 +795,12 @@ function handleRemoteKeys(e) {
     case 'R':
       send('toggleReverse');
       break;
+    case 'e':
+    case 'E':
+      toggleRemoteEditPane();
+      break;
     case 'Escape':
-      lab.remote.disconnect();
+      disconnectRemote();
       break;
     default:
       return;
@@ -889,7 +949,13 @@ function wireEvents() {
   els.remoteHost.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') els.btnRemoteConnectManual.click();
   });
-  els.btnRemoteDisconnect.addEventListener('click', () => lab.remote.disconnect());
+  els.btnRemoteDisconnect.addEventListener('click', disconnectRemote);
+  els.btnRemoteEdit.addEventListener('click', () => toggleRemoteEditPane());
+  els.remoteEditor.addEventListener('input', () => {
+    clearTimeout(remoteEditTimer);
+    remoteEditTimer = setTimeout(flushRemoteEdit, 250);
+  });
+  els.remoteEditor.addEventListener('blur', flushRemoteEdit);
   els.btnRemotePresent.addEventListener('click', () => {
     const presenting = rc.state && rc.state.presenting;
     lab.remote.send({ t: 'cmd', action: presenting ? 'exitPresent' : 'enterPresent' });

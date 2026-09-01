@@ -73,21 +73,28 @@
       <span id="remoteBadge" class="remote-badge"></span>
       <div class="spacer"></div>
       <span id="remoteSpeed" class="remote-speed"></span>
+      <button id="btnRemoteEdit" class="btn">Edit script</button>
       <button id="btnRemotePresent" class="btn">Present&ensp;▸</button>
       <button id="btnRemoteDisconnect" class="btn danger">Disconnect</button>
     </header>
-    <div id="remoteStage">
-      <div id="remoteScreen">
-        <div id="remoteViewport"><div id="remoteContent" class="prompt-text"></div></div>
-        <div id="remoteLine"></div>
-        <div id="remoteProgress"><div id="remoteProgressFill"></div></div>
+    <div class="remote-main">
+      <div id="remoteStage">
+        <div id="remoteScreen">
+          <div id="remoteViewport"><div id="remoteContent" class="prompt-text"></div></div>
+          <div id="remoteLine"></div>
+          <div id="remoteProgress"><div id="remoteProgressFill"></div></div>
+        </div>
+        <div id="remoteOverlay">Waiting for Present Mode on the remote…</div>
       </div>
-      <div id="remoteOverlay">Waiting for Present Mode on the remote…</div>
+      <div id="remoteEditPane" class="edit-pane" hidden>
+        <div class="edit-head">Live edit — changes hit the studio prompter as you type</div>
+        <textarea id="remoteEditor" spellcheck="false"></textarea>
+      </div>
     </div>
     <footer class="statusbar remote-foot">
       <span id="remoteShuttleNote"></span>
       <div class="spacer"></div>
-      <span class="hint">Your keyboard &amp; shuttle drive the remote prompter&ensp;·&ensp;Esc disconnects</span>
+      <span class="hint">Your keyboard &amp; shuttle drive the remote prompter&ensp;·&ensp;E edit&ensp;·&ensp;Esc disconnects</span>
     </footer>
   </div>
 

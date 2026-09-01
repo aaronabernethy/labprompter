@@ -516,9 +516,16 @@ body.mac .remote-bar { padding-left: 84px; }
 .remote-badge { color: var(--muted); font-size: 12px; }
 .remote-speed { color: var(--muted); font-size: 12px; }
 
+.remote-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 #remoteStage {
   position: relative;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   background: #08090b;
   overflow: hidden;
@@ -753,7 +760,8 @@ body.mac .remote-bar { padding-left: 84px; }
 body.op-caps .prompt-text,
 body.op-caps #opUpcoming { text-transform: uppercase; }
 
-#opEditPane {
+/* Shared by the Operator View and the remote-control view. */
+.edit-pane {
   width: 380px;
   flex: none;
   display: flex;
@@ -761,7 +769,7 @@ body.op-caps #opUpcoming { text-transform: uppercase; }
   background: #101216;
   border-left: 1px solid var(--border);
 }
-.op-edit-head {
+.edit-head {
   padding: 8px 12px;
   font-size: 11px;
   font-weight: 600;
@@ -771,7 +779,7 @@ body.op-caps #opUpcoming { text-transform: uppercase; }
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
-#opEditor {
+.edit-pane textarea {
   flex: 1;
   min-height: 0;
   background: transparent;
@@ -788,9 +796,9 @@ body.op-caps #opUpcoming { text-transform: uppercase; }
   caret-color: var(--accent);
   user-select: text;
 }
-#opEditor::-webkit-scrollbar { width: 12px; }
-#opEditor::-webkit-scrollbar-thumb { background: #2c333d; border-radius: 6px; border: 3px solid #101216; }
-#opEditor::-webkit-scrollbar-track { background: transparent; }
+.edit-pane textarea::-webkit-scrollbar { width: 12px; }
+.edit-pane textarea::-webkit-scrollbar-thumb { background: #2c333d; border-radius: 6px; border: 3px solid #101216; }
+.edit-pane textarea::-webkit-scrollbar-track { background: transparent; }
 
 /* Off-screen layout used to map scroll position back to script lines. */
 .line-measure {

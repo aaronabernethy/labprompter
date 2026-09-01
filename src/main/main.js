@@ -281,6 +281,10 @@ function startRemoteServer() {
     onInput: (ev) => {
       if (win) win.webContents.send('shuttle:event', ev);
     },
+    // Remote edits ride the same path as Operator View edits.
+    onEdit: (body) => {
+      if (win) win.webContents.send('live:edit', body);
+    },
     getDoc: () => lastDoc,
     getState: () => control.getState(),
   });

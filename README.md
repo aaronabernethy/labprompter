@@ -32,6 +32,8 @@ The Operator View accepts **all the same keyboard controls as Present Mode** (Sp
 
 Press **E** (or the **Edit script** button) in the Operator View to open a live-edit pane. Changes appear on the teleprompter as you type — no need to exit Present Mode — and autosave to the script library as usual. The prompter holds its place: an edit below the reading line changes nothing the talent is looking at, and an edit above it shifts the scroll by exactly the changed height, so the line under the reading line never jumps. Adding or removing `---` markers updates the jump targets and section list immediately. While the edit pane has focus your keyboard types into the script (Esc closes the pane; prompter keys work again once it's closed).
 
+The same edit pane exists in the **Remote Control** view (see below), so an assistant on a second Mac can fix the script live too.
+
 Differences from Mirrored mode at a glance: in Mirrored mode the operator watches the exact talent feed (nothing operator-only can appear, since the talent sees the same pixels); in Extended mode the operator gets the richer Operator View while the talent still gets the plain Present window. The *Present on secondary display automatically* toggle only applies to Mirrored mode — Extended mode always presents on the secondary display.
 
 Remote Control from a second Mac (below) is unaffected by the display mode and remains the right tool when the assistant sits at a genuinely separate machine.
@@ -45,7 +47,7 @@ Remote Control from a second Mac (below) is unaffected by the display mode and r
 - **Extended display mode** — for setups where Screen 2 *extends* the desktop instead of mirroring it: Present opens on the prompter display while a separate **Operator View** window stays on Screen 1 with a live mirror, upcoming lines, section position, live speed, controller status, and all Present Mode controls — plus **live script editing** that updates the teleprompter as you type, without exiting Present Mode or moving the talent's reading position.
 - **Shuttle control** — spring-loaded shuttle ring sets scroll speed proportionally (gentle twist = slow crawl, full twist = fast), the free-spinning jog dial nudges/scrubs, and all buttons are remappable in Settings.
 - **Stream Deck plugin** — a bundled plugin (`streamdeck/`) puts prompter keys on an Elgato Stream Deck: Play, Pause, hold-to-scroll up/down, Top, Previous/Next Section, Text Bigger/Smaller, speed, eye line, ALL CAPS, and Present Mode toggle.
-- **Network remote control** — a second Mac running LabPrompter can drive the studio machine. Instances broadcast themselves over Bonjour; click **Remote**, pick the studio Mac, and your keyboard and shuttle control its prompter while a scaled live mirror shows exactly what the talent sees. A dead-man safety zeroes the shuttle if the connection drops.
+- **Network remote control** — a second Mac running LabPrompter can drive the studio machine. Instances broadcast themselves over Bonjour; click **Remote**, pick the studio Mac, and your keyboard and shuttle control its prompter while a scaled live mirror shows exactly what the talent sees — with the same live script editing as the Operator View. A dead-man safety zeroes the shuttle if the connection drops.
 - **Local control API** — anything that can send an HTTP request can drive the prompter: `POST http://127.0.0.1:43717/command` with a plain-text command name; `GET /state` returns `{ presenting, playing }`. Bound to localhost only.
 - **Keyboard fallback** — everything works without any controller.
 
@@ -76,6 +78,7 @@ Run LabPrompter on both machines. On the assistant's Mac, click **Remote** — i
 
 - The window becomes a live, scaled mirror of the studio prompter — reading line, progress, play state — so the assistant always sees the read position (put an NDI monitor of the talent in a window beside it).
 - The assistant's **keyboard uses the same keys as Present Mode**, and a shuttle controller plugged into *their* machine drives the studio prompter (button mappings come from the studio Mac's settings).
+- Press **E** (or **Edit script**) to open a live-edit pane: changes are sent to the studio Mac and appear on its prompter as the assistant types, with the same reading-position preservation as local live editing, and autosave into the studio's script library. Both machines must run a version that speaks the `edit` message (an older studio silently ignores it). Esc closes the pane; a second Esc disconnects.
 - Commands travel as discrete speed-state events, so scrolling stays smooth regardless of network jitter; if the remote's connection drops while the shuttle is deflected, the studio side zeroes it within 2 seconds.
 - `Esc` or **Disconnect** returns to the local editor. Untick *Allow network remote control* in Settings to stop the studio Mac accepting connections (and its Bonjour broadcast).
 

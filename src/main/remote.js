@@ -3,7 +3,7 @@
 // newline-delimited JSON over TCP; discovery is Bonjour/mDNS.
 //
 // Client -> server: hello, ping, cmd {action}, shuttle {v}, jog {d},
-//                   button {b, down}
+//                   button {b, down}, edit {body}
 // Server -> client: welcome, pong, doc {title, body, s, vw, vh},
 //                   state {presenting, playing, pos, max, speed, baseSpeedPct}
 //
@@ -105,6 +105,11 @@ function startServer(cb) {
         case 'button':
           if (Number.isFinite(m.b)) {
             server.cb.onInput({ type: 'button', button: m.b | 0, down: m.down !== false });
+          }
+          break;
+        case 'edit':
+          if (server.cb.onEdit && typeof m.body === 'string' && m.body.length <= 2e5) {
+            server.cb.onEdit(m.body);
           }
           break;
       }
