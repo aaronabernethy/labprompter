@@ -45,6 +45,12 @@ contextBridge.exposeInMainWorld('lab', {
     onDoc: (cb) => ipcRenderer.on('operator:doc', (e, d) => cb(d)),
     onState: (cb) => ipcRenderer.on('operator:state', (e, s) => cb(s)),
   },
+  studio: {
+    status: () => ipcRenderer.invoke('studio:status'),
+    pair: (code, baseUrl) => ipcRenderer.invoke('studio:pair', { code, baseUrl }),
+    disconnect: () => ipcRenderer.invoke('studio:disconnect'),
+    sessions: () => ipcRenderer.invoke('studio:sessions'),
+  },
   onLiveEdit: (cb) => ipcRenderer.on('live:edit', (e, body) => cb(body)),
   reportError: (msg) => ipcRenderer.send('renderer:error', msg),
   ready: () => ipcRenderer.send('renderer:ready'),

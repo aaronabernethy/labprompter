@@ -21,6 +21,7 @@ const DEFAULTS = {
   jogSens: 100,
   wpm: 150,
   allowRemote: true,
+  libraryTab: 'library',
   lastScriptId: null,
   lastRemote: null,
   buttonMap: {
@@ -109,6 +110,7 @@ function listScripts() {
         words: s.words || 0,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
+        source: s.source || null,
       });
     } catch {
       // skip unreadable entries
@@ -127,7 +129,16 @@ function getScript(id) {
   }
 }
 
-function createScript({ title, body } = {}) {
+// `source` records where a script came from when it wasn't typed here —
+// { kind: 'studio', scriptId, bookingId, updatedAt, version, ... } for a
+// script loaded from StudioOS — so the Sessions tab can tell "already
+// loaded" from "new" and refresh in place rather than duplicating.
+function cleanSource(source) {
+  if (!source || typeof source !== 'object') return null;
+  return { ...source };
+}
+
+function createScript({ title, body, source } = {}) {
   const id = 's_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const now = Date.now();
   const script = {
@@ -137,12 +148,13 @@ function createScript({ title, body } = {}) {
     words: countWords(body),
     createdAt: now,
     updatedAt: now,
+    source: cleanSource(source),
   };
   fs.writeFileSync(scriptPath(id), JSON.stringify(script, null, 2));
   return script;
 }
 
-function saveScript({ id, title, body }) {
+function saveScript({ id, title, body, source }) {
   if (!validId(id)) throw new Error('bad script id');
   const existing = getScript(id);
   const now = Date.now();
@@ -153,6 +165,8 @@ function saveScript({ id, title, body }) {
     words: countWords(body),
     createdAt: (existing && existing.createdAt) || now,
     updatedAt: now,
+    // Saves that don't mention source (editor autosave) keep the link.
+    source: source === undefined ? ((existing && existing.source) || null) : cleanSource(source),
   };
   fs.writeFileSync(scriptPath(id), JSON.stringify(script, null, 2));
   return { updatedAt: now };

@@ -43,6 +43,7 @@ Remote Control from a second Mac (below) is unaffected by the display mode and r
 - **Script editor** — plain-text editing, so pasting from Word/Docs/Notes strips all formatting automatically. Import from `.txt`, `.md`, and `.docx`. Live prompter preview with adjustable text size and an ALL CAPS toggle.
 - **Jump markers** — put `---` (or `[BREAK]`) alone on a line to mark a jump point. Markers show as amber pills in the editor and as labeled dividers in the preview; in Present Mode they're invisible jump targets.
 - **Script library** — scripts autosave locally as flat JSON files (`~/Library/Application Support/labprompter/scripts/`). Open, rename, and delete from the Library panel.
+- **StudioOS sessions** — pair once with The Content Lab's StudioOS (Settings → StudioOS) and the Library gains a **Sessions** tab listing upcoming studio sessions with the scripts their clients have attached. One click loads a script into the prompter; clicking again after it's been edited in StudioOS pulls the latest wording.
 - **Present Mode** — fullscreen, black background, white text, zero chrome. A reading line marks the current position, with an optional thin progress bar along the bottom. The cursor auto-hides, and the display is kept awake while presenting.
 - **Reading line styles** — if the thin line doesn't read on your glass, Settings offers a **bar behind the text** style that frames the whole line being spoken, color swatches plus a custom color picker, thickness/height, and intensity. Styling previews live in the editor and carries through to the Operator View and remote mirrors.
 - **Extended display mode** — for setups where Screen 2 *extends* the desktop instead of mirroring it: Present opens on the prompter display while a separate **Operator View** window stays on Screen 1 with a live mirror, upcoming lines, section position, live speed, controller status, and all Present Mode controls — plus **live script editing** that updates the teleprompter as you type, without exiting Present Mode or moving the talent's reading position.
@@ -89,6 +90,17 @@ Run LabPrompter on both machines. On the assistant's Mac, click **Remote** — i
 - `Esc` or **Disconnect** returns to the local editor. Untick *Allow network remote control* in Settings to stop the studio Mac accepting connections (and its Bonjour broadcast).
 
 Anyone on the LAN can connect while remote control is allowed — it's designed for closed studio networks.
+
+## StudioOS sessions
+
+LabPrompter can pull scripts straight from The Content Lab's StudioOS, so nobody copies and pastes on shoot day.
+
+1. In StudioOS, an admin opens **Admin → Studio Devices**, picks **LabPrompter**, gives the studio Mac a name and clicks **Register device**, then **Pairing code**. The code looks like `ABCD-EFGH`, works once, and expires after 15 minutes.
+2. In LabPrompter open **Settings → StudioOS**, type the code and click **Connect**. That's it — the Mac holds a revocable device key from then on (stored in `~/Library/Application Support/labprompter/studio.json`, never shown in the app).
+3. Open **Library** and switch to the **Sessions** tab. Upcoming recording sessions (today through the next two weeks) are listed with their scripts; click one to load it into the prompter. It becomes an ordinary local script — tagged *StudioOS* in the Library tab — so presenting, live editing and remote control all work as usual, online or offline.
+4. If a script is edited in StudioOS after you loaded it, the Sessions tab shows **Update**; click it to replace your local copy with the new wording. Scripts that haven't changed upstream keep any local tweaks.
+
+Revoking the device in StudioOS takes effect on the next refresh; **Disconnect** in Settings forgets the key locally. Only the studio Mac needs pairing — an assistant's Mac on Remote Control edits whatever the studio Mac has loaded.
 
 ## Stream Deck
 

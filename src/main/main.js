@@ -6,6 +6,7 @@ const shuttle = require('./shuttle');
 const importers = require('./importers');
 const control = require('./control-server');
 const remote = require('./remote');
+const studio = require('./studio');
 
 // Dev runs store data under the package name ("labprompter"); pin the
 // packaged app to the same folder so the script library carries over.
@@ -340,6 +341,25 @@ ipcMain.handle('settings:set', (e, patch) => {
   }
   const { lastRemote, ...rest } = merged;
   return rest;
+});
+
+// ---- IPC: StudioOS ----
+// The device token never leaves main; the renderer gets status + data.
+ipcMain.handle('studio:status', () => studio.status());
+ipcMain.handle('studio:pair', async (e, { code, baseUrl } = {}) => {
+  try {
+    return await studio.pair(code, baseUrl);
+  } catch (err) {
+    return { ok: false, error: 'Pairing failed: ' + (err && err.message ? err.message : err) };
+  }
+});
+ipcMain.handle('studio:disconnect', () => studio.disconnect());
+ipcMain.handle('studio:sessions', async () => {
+  try {
+    return await studio.fetchSessions();
+  } catch (err) {
+    return { ok: false, code: 'error', error: 'Could not load sessions: ' + (err && err.message ? err.message : err) };
+  }
 });
 
 // ---- IPC: present mode ----
