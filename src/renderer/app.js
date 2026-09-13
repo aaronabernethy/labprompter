@@ -14,6 +14,21 @@ const els = {
   libraryPanel: $('libraryPanel'),
   scriptList: $('scriptList'),
   btnNew: $('btnNew'),
+  tabLibrary: $('tabLibrary'),
+  tabSessions: $('tabSessions'),
+  libraryLocal: $('libraryLocal'),
+  librarySessions: $('librarySessions'),
+  btnSessionsRefresh: $('btnSessionsRefresh'),
+  sessionsStatus: $('sessionsStatus'),
+  sessionList: $('sessionList'),
+  studioDisconnected: $('studioDisconnected'),
+  studioConnected: $('studioConnected'),
+  studioCode: $('studioCode'),
+  studioBaseUrl: $('studioBaseUrl'),
+  btnStudioConnect: $('btnStudioConnect'),
+  btnStudioDisconnect: $('btnStudioDisconnect'),
+  studioStatusText: $('studioStatusText'),
+  studioMessage: $('studioMessage'),
   scriptBody: $('scriptBody'),
   backdropContent: $('backdropContent'),
   btnInsertBreak: $('btnInsertBreak'),
@@ -67,6 +82,10 @@ let stateTimer = null;
 
 // Client-side state when this instance is controlling another one.
 const rc = { mode: false, doc: null, state: null, stateAt: 0, raf: null };
+
+// StudioOS connection + the Sessions tab cache (the token itself stays in main).
+const studio = { status: null, sessions: null, fetchedAt: 0, loading: false, error: null };
+const SESSIONS_STALE_MS = 60 * 1000;
 
 const P = new Prompter(els, () => settings, {
   onExit: () => exitPresent(),
@@ -367,7 +386,7 @@ async function doSave() {
   });
   setSaveState('Saved ' + fmtTime(updatedAt));
   pushDoc();
-  if (!els.libraryPanel.hidden) refreshLibrary();
+  if (!els.libraryPanel.hidden && !els.libraryLocal.hidden) refreshLibrary();
 }
 
 function flushSave() {
@@ -394,7 +413,10 @@ function openScript(script) {
   settings.lastScriptId = script.id;
   persistSettings();
   pushDoc();
-  if (!els.libraryPanel.hidden) refreshLibrary();
+  if (!els.libraryPanel.hidden) {
+    if (els.libraryLocal.hidden) refreshSessions();
+    else refreshLibrary();
+  }
 }
 
 async function refreshLibrary() {
@@ -416,6 +438,13 @@ async function refreshLibrary() {
     const meta = document.createElement('div');
     meta.className = 'script-meta';
     meta.textContent = `${item.words} words · ${fmtTime(item.updatedAt)}`;
+    if (item.source && item.source.kind === 'studio') {
+      const tag = document.createElement('span');
+      tag.className = 'script-tag';
+      tag.textContent = 'StudioOS';
+      tag.title = item.source.clientName ? `Loaded from StudioOS — ${item.source.clientName}` : 'Loaded from StudioOS';
+      meta.appendChild(tag);
+    }
     info.append(title, meta);
 
     const del = document.createElement('button');
@@ -518,6 +547,299 @@ async function duplicateScript() {
   openScript(s);
   els.scriptTitle.focus();
   els.scriptTitle.select();
+}
+
+// ---------- Library tabs + StudioOS sessions ----------
+
+function setLibraryTab(tab) {
+  const sessions = tab === 'sessions';
+  els.tabLibrary.classList.toggle('active', !sessions);
+  els.tabSessions.classList.toggle('active', sessions);
+  els.libraryLocal.hidden = sessions;
+  els.librarySessions.hidden = !sessions;
+  if (settings.libraryTab !== tab) {
+    settings.libraryTab = tab;
+    persistSettings();
+  }
+  if (sessions) refreshSessions();
+  else refreshLibrary();
+}
+
+function fmtSessionWhen(startIso, endIso) {
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) return '';
+  const day = start.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const time = (d) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const end = endIso ? new Date(endIso) : null;
+  return end && !Number.isNaN(end.getTime()) ? `${day} · ${time(start)}–${time(end)}` : `${day} · ${time(start)}`;
+}
+
+function showSessionsStatus(message, { error = false, action = null } = {}) {
+  els.sessionsStatus.hidden = false;
+  els.sessionsStatus.classList.toggle('error', error);
+  els.sessionsStatus.textContent = '';
+  const text = document.createElement('div');
+  text.textContent = message;
+  els.sessionsStatus.appendChild(text);
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'btn small';
+    b.textContent = action.label;
+    b.addEventListener('click', action.onClick);
+    els.sessionsStatus.appendChild(b);
+  }
+}
+
+async function refreshStudioStatus() {
+  studio.status = await lab.studio.status();
+  return studio.status;
+}
+
+async function refreshSessions(force = false) {
+  if (studio.loading) return;
+  const st = studio.status || (await refreshStudioStatus());
+  if (!st.connected) {
+    studio.sessions = null;
+    els.sessionList.innerHTML = '';
+    showSessionsStatus('Not connected to StudioOS. Pair this Mac in Settings to see upcoming sessions and their scripts.', {
+      action: { label: 'Open Settings', onClick: () => openSettings() },
+    });
+    return;
+  }
+  const fresh = studio.sessions && Date.now() - studio.fetchedAt < SESSIONS_STALE_MS;
+  if (fresh && !force) {
+    renderSessions();
+    return;
+  }
+  studio.loading = true;
+  els.btnSessionsRefresh.disabled = true;
+  if (!studio.sessions) showSessionsStatus('Loading sessions from StudioOS…');
+  try {
+    const res = await lab.studio.sessions();
+    if (res.ok) {
+      studio.sessions = res.sessions;
+      studio.fetchedAt = res.fetchedAt || Date.now();
+      studio.error = null;
+      renderSessions();
+    } else {
+      studio.error = res;
+      if (res.code === 'revoked' || res.code === 'unauthorised') {
+        studio.status = await refreshStudioStatus();
+        studio.sessions = null;
+        els.sessionList.innerHTML = '';
+        showSessionsStatus(res.error, { error: true, action: { label: 'Open Settings', onClick: () => openSettings() } });
+      } else if (studio.sessions) {
+        // Keep the last good list; say it's stale.
+        renderSessions();
+        showSessionsStatus(`${res.error} Showing the last list from ${fmtTime(studio.fetchedAt)}.`, { error: true });
+      } else {
+        showSessionsStatus(res.error, { error: true, action: { label: 'Try again', onClick: () => refreshSessions(true) } });
+      }
+    }
+  } finally {
+    studio.loading = false;
+    els.btnSessionsRefresh.disabled = false;
+  }
+}
+
+async function renderSessions() {
+  const list = await lab.scripts.list();
+  const localByStudioId = new Map();
+  for (const item of list) {
+    if (item.source && item.source.kind === 'studio' && item.source.scriptId) {
+      localByStudioId.set(item.source.scriptId, item);
+    }
+  }
+
+  els.sessionsStatus.hidden = true;
+  els.sessionList.innerHTML = '';
+  const sessions = studio.sessions || [];
+  if (!sessions.length) {
+    showSessionsStatus('No upcoming sessions in the next two weeks.');
+    return;
+  }
+
+  for (const session of sessions) {
+    const group = document.createElement('div');
+    group.className = 'session-group';
+
+    const head = document.createElement('div');
+    head.className = 'session-head';
+    const client = document.createElement('div');
+    client.className = 'session-client';
+    client.textContent = session.clientName || 'Session';
+    const when = document.createElement('div');
+    when.className = 'session-when';
+    when.textContent = fmtSessionWhen(session.startTime, session.endTime);
+    head.append(client, when);
+    group.appendChild(head);
+
+    if (!session.scripts || !session.scripts.length) {
+      const empty = document.createElement('div');
+      empty.className = 'session-empty';
+      empty.textContent = 'No scripts attached yet';
+      group.appendChild(empty);
+    }
+
+    for (const script of session.scripts || []) {
+      const row = document.createElement('div');
+      row.className = 'session-script';
+      const local = localByStudioId.get(script.id);
+      row.classList.toggle('active', Boolean(local && current && local.id === current.id));
+
+      const info = document.createElement('div');
+      info.className = 'script-info';
+      const title = document.createElement('div');
+      title.className = 'script-title';
+      title.textContent = script.title || 'Untitled';
+      const meta = document.createElement('div');
+      meta.className = 'script-meta';
+      const bits = [`${script.words} words`];
+      if (script.estimatedMinutes) bits.push(`est. ${script.estimatedMinutes} min`);
+      meta.textContent = bits.join(' · ');
+      info.append(title, meta);
+
+      const state = document.createElement('span');
+      state.className = 'state';
+      if (local) {
+        const localStamp = (local.source && local.source.updatedAt) || '';
+        const updateAvailable = script.updatedAt && script.updatedAt > localStamp;
+        state.classList.add(updateAvailable ? 'update' : 'loaded');
+        state.textContent = updateAvailable ? 'Update' : 'Loaded';
+        state.title = updateAvailable
+          ? 'Edited in StudioOS since you loaded it — click to load the latest wording'
+          : 'Already in your library — click to open';
+      } else {
+        state.textContent = 'Load';
+        state.title = 'Load this script into the prompter';
+      }
+
+      row.append(info, state);
+      row.addEventListener('click', () => loadStudioScript(session, script));
+      group.appendChild(row);
+    }
+    els.sessionList.appendChild(group);
+  }
+}
+
+// Load (or refresh) a StudioOS script as a local library script and open it.
+// StudioOS is the source of truth for wording: if the server copy is newer
+// than what we loaded, it replaces the local text. Local edits made since
+// loading survive until the script changes upstream.
+async function loadStudioScript(session, script) {
+  flushSave();
+  const list = await lab.scripts.list();
+  const existing = list.find((s) => s.source && s.source.kind === 'studio' && s.source.scriptId === script.id);
+  const source = {
+    kind: 'studio',
+    scriptId: script.id,
+    clipId: script.clipId || null,
+    bookingId: session.id,
+    clientName: session.clientName || null,
+    sessionStart: session.startTime || null,
+    updatedAt: script.updatedAt || null,
+    version: script.version || null,
+    loadedAt: Date.now(),
+  };
+
+  let target;
+  if (existing) {
+    target = await lab.scripts.get(existing.id);
+    const localStamp = (target && target.source && target.source.updatedAt) || '';
+    const upstreamNewer = !target || (script.updatedAt && script.updatedAt > localStamp);
+    if (target && upstreamNewer) {
+      target.title = script.title || target.title;
+      target.body = script.text || '';
+      target.source = source;
+      await lab.scripts.save({ id: target.id, title: target.title, body: target.body, source });
+    }
+  }
+  if (!target) {
+    target = await lab.scripts.create({ title: script.title || 'Untitled', body: script.text || '', source });
+  }
+  openScript(target); // re-renders the Sessions tab (Loaded / active state)
+}
+
+// ---------- StudioOS settings ----------
+
+function showStudioMessage(text, tone) {
+  els.studioMessage.hidden = !text;
+  els.studioMessage.textContent = text || '';
+  els.studioMessage.classList.toggle('error', tone === 'error');
+  els.studioMessage.classList.toggle('ok', tone === 'ok');
+}
+
+async function syncStudioSettingsUI() {
+  const st = await refreshStudioStatus();
+  els.studioDisconnected.hidden = st.connected;
+  els.studioConnected.hidden = !st.connected;
+  if (st.connected) {
+    els.studioStatusText.innerHTML = '';
+    const dot = document.createElement('span');
+    dot.className = st.revoked ? 'warn' : 'ok';
+    dot.textContent = st.revoked ? '● Deregistered' : '● Connected';
+    const name = document.createElement('span');
+    name.textContent = ` as “${st.deviceName}”`;
+    els.studioStatusText.append(dot, name);
+    if (st.revoked) {
+      showStudioMessage('StudioOS has deregistered this device. Disconnect, then pair again with a fresh code.', 'error');
+    }
+  } else if (!els.studioBaseUrl.value) {
+    els.studioBaseUrl.value = st.baseUrl || '';
+  }
+}
+
+function formatPairInput() {
+  const raw = els.studioCode.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  els.studioCode.value = raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw;
+}
+
+async function connectStudio() {
+  const code = els.studioCode.value.trim();
+  if (!code) {
+    els.studioCode.focus();
+    return;
+  }
+  els.btnStudioConnect.disabled = true;
+  showStudioMessage('Connecting…');
+  try {
+    const res = await lab.studio.pair(code, els.studioBaseUrl.value);
+    if (res.ok) {
+      els.studioCode.value = '';
+      studio.sessions = null;
+      await syncStudioSettingsUI();
+      showStudioMessage(`Connected as “${res.status.deviceName}”. Open Library → Sessions to see upcoming scripts.`, 'ok');
+      if (!els.librarySessions.hidden) refreshSessions(true);
+    } else {
+      showStudioMessage(res.error || 'Pairing failed.', 'error');
+    }
+  } finally {
+    els.btnStudioConnect.disabled = false;
+  }
+}
+
+async function disconnectStudio() {
+  await lab.studio.disconnect();
+  studio.sessions = null;
+  studio.error = null;
+  showStudioMessage('Disconnected. Scripts already in your library stay where they are.');
+  await syncStudioSettingsUI();
+  if (!els.librarySessions.hidden) refreshSessions();
+}
+
+function wireStudio() {
+  els.tabLibrary.addEventListener('click', () => setLibraryTab('library'));
+  els.tabSessions.addEventListener('click', () => setLibraryTab('sessions'));
+  els.btnSessionsRefresh.addEventListener('click', () => refreshSessions(true));
+  els.studioCode.addEventListener('input', formatPairInput);
+  els.studioCode.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      connectStudio();
+    }
+  });
+  els.btnStudioConnect.addEventListener('click', connectStudio);
+  els.btnStudioDisconnect.addEventListener('click', disconnectStudio);
 }
 
 // ---------- Editor rendering ----------
@@ -972,6 +1294,8 @@ function handleShuttle(ev) {
 function openSettings() {
   syncSettingsUI();
   renderButtonRows();
+  showStudioMessage('');
+  syncStudioSettingsUI();
   els.settingsModal.hidden = false;
 }
 
@@ -1011,7 +1335,7 @@ function wireEvents() {
   els.btnImport.addEventListener('click', importScript);
   els.btnLibrary.addEventListener('click', () => {
     els.libraryPanel.hidden = !els.libraryPanel.hidden;
-    if (!els.libraryPanel.hidden) refreshLibrary();
+    if (!els.libraryPanel.hidden) setLibraryTab(settings.libraryTab === 'sessions' ? 'sessions' : 'library');
   });
   els.btnSettings.addEventListener('click', () => {
     if (els.settingsModal.hidden) openSettings();
@@ -1149,6 +1473,7 @@ async function init() {
   applyPromptVars();
   syncSettingsUI();
   wireSettings();
+  wireStudio();
   wireEvents();
 
   let script = settings.lastScriptId ? await lab.scripts.get(settings.lastScriptId) : null;

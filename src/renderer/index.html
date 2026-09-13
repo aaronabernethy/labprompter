@@ -23,11 +23,25 @@
 
     <div class="workspace">
       <aside id="libraryPanel" class="library" hidden>
-        <div class="library-head">
-          <span>Scripts</span>
-          <button id="btnNew" class="btn small">＋ New</button>
+        <div class="library-tabs" role="tablist">
+          <button id="tabLibrary" class="lib-tab active" role="tab">Library</button>
+          <button id="tabSessions" class="lib-tab" role="tab">Sessions</button>
         </div>
-        <ul id="scriptList"></ul>
+        <div id="libraryLocal" class="library-pane">
+          <div class="library-head">
+            <span>Scripts</span>
+            <button id="btnNew" class="btn small">＋ New</button>
+          </div>
+          <ul id="scriptList"></ul>
+        </div>
+        <div id="librarySessions" class="library-pane" hidden>
+          <div class="library-head">
+            <span>Upcoming sessions</span>
+            <button id="btnSessionsRefresh" class="btn small" title="Refresh from StudioOS">↻</button>
+          </div>
+          <div id="sessionsStatus" class="sessions-status" hidden></div>
+          <div id="sessionList" class="session-list"></div>
+        </div>
       </aside>
 
       <section class="editor-pane">
@@ -203,6 +217,34 @@
           <label class="row check" id="rowAutoMove"><input type="checkbox" id="setAutoMove" /> Present on secondary display automatically</label>
           <p class="muted" id="extendedModeNote" hidden>Present opens fullscreen on the display connected to the Prompter XL, while an Operator View window — live mirror, upcoming lines, and all Present Mode controls — stays on this screen.</p>
           <label class="row check"><input type="checkbox" id="setAllowRemote" /> Allow network remote control</label>
+        </section>
+        <section id="studioSection">
+          <h3>StudioOS</h3>
+          <p class="muted">Connect to The Content Lab's StudioOS to see upcoming sessions and load their scripts straight into the prompter (Library → Sessions).</p>
+          <div id="studioDisconnected">
+            <div class="row">
+              <span>Pairing code</span>
+              <input type="text" id="studioCode" class="text-input pair-input" spellcheck="false" autocomplete="off"
+                autocapitalize="characters" placeholder="ABCD-EFGH" maxlength="9" />
+              <button id="btnStudioConnect" class="btn">Connect</button>
+            </div>
+            <p class="muted">Get a code in StudioOS: Admin → Studio Devices → your LabPrompter device → <b>Pairing code</b>. Each code works once.</p>
+            <details class="studio-advanced">
+              <summary>Advanced</summary>
+              <div class="row">
+                <span>StudioOS address</span>
+                <input type="text" id="studioBaseUrl" class="text-input" spellcheck="false" placeholder="https://thecontentlab.co.uk" />
+              </div>
+            </details>
+          </div>
+          <div id="studioConnected" hidden>
+            <div class="row">
+              <span>Status</span>
+              <span id="studioStatusText" class="studio-status"></span>
+              <button id="btnStudioDisconnect" class="btn small danger">Disconnect</button>
+            </div>
+          </div>
+          <p id="studioMessage" class="muted studio-message" hidden></p>
         </section>
         <section>
           <h3>Speed</h3>
