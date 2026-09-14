@@ -1,0 +1,61 @@
+name: Release
+
+# Builds the macOS app and publishes it to GitHub Releases whenever a
+# version tag is pushed (or on demand). Mirrors the manual release
+# recipe in README.md "Releasing updates" / "Signing & notarization" —
+# same npm script, same env vars, just run on a hosted macOS runner
+# instead of a developer's own Mac.
+#
+# Signing: without CSC_LINK/CSC_KEY_PASSWORD this runner has no
+# certificate in its keychain at all (unlike a dev's own Mac, which
+# has the free Apple Development cert already installed), so we fall
+# back to an explicit unsigned build rather than failing outright.
+# Unsigned builds need a right-click → Open the first time on the
+# install target and are not equivalent to the notarized releases this
+# project ships once signing secrets are configured. See README.md for
+# what to add:
+#   - CSC_LINK / CSC_KEY_PASSWORD           — a Developer ID (or Apple
+#     Development) certificate exported as base64-encoded .p12
+#   - APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID — enables
+#     full notarization on top of Developer ID signing
+#
+# electron-builder creates a DRAFT release — publishing it (so
+# electron-updater on installed apps picks it up) is a manual step on
+# the GitHub Releases page, same as a local release.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Build unsigned if no signing certificate is configured
+        if: ${{ env.CSC_LINK == '' }}
+        run: echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> "$GITHUB_ENV"
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+
+      - name: Build and publish a draft release
+        run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

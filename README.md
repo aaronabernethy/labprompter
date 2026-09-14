@@ -152,6 +152,20 @@ GH_TOKEN=$(gh auth token) npm run release
 
 The update feed requires the app to be able to read the repo's releases: either keep the repo public, or the studio Mac needs a `GH_TOKEN` available to the app for a private repo.
 
+### Releasing via CI (no Mac required to kick it off)
+
+`.github/workflows/release.yml` runs the exact same `npm run release` on a hosted macOS runner whenever you push a version tag (`git tag v1.4.0 && git push origin v1.4.0`), or on demand from the Actions tab. It still produces a **draft** release — publishing it is a manual step either way.
+
+Because the runner starts with an empty keychain (no Apple Development certificate the way a real Mac has one), it needs the signing secrets below added under the repo's Settings → Secrets and variables → Actions, or it falls back to an **unsigned** build:
+
+| Secret | Purpose |
+|---|---|
+| `CSC_LINK` | Base64 of a Developer ID (or Apple Development) `.p12` certificate export |
+| `CSC_KEY_PASSWORD` | Password for that `.p12` |
+| `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | Optional — adds full notarization on top of Developer ID signing, so the dmg opens cleanly on any Mac, not just ones that already trust the signing cert |
+
+An unsigned build needs a right-click → Open the first time and is not equivalent to the notarized releases this project normally ships — fine for a quick internal test, not for what actually lands on the studio Mac.
+
 ## Signing & notarization
 
 Builds are configured for hardened runtime + entitlements, ready for Developer ID signing and notarization. One-time setup (needs the Apple Developer account holder):
