@@ -327,6 +327,12 @@ body.mac .topbar { padding-left: 84px; }
   border-radius: 4px;
 }
 
+#backdropContent .direction {
+  background: rgba(120, 170, 255, 0.14);
+  box-shadow: 0 0 0 1px rgba(120, 170, 255, 0.3);
+  border-radius: 4px;
+}
+
 #scriptBody {
   position: absolute;
   inset: 0;
@@ -494,6 +500,13 @@ body.all-caps .preview-content.empty::after { text-transform: none; }
 
 .prompt-text .break-gap { height: 0.8em; }
 
+.prompt-text .direction {
+  color: #8fb6ff;
+  font-style: italic;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
 .preview-content .break-gap {
   height: auto;
   margin: 0.45em 0;
@@ -605,6 +618,61 @@ body[data-view="present"] #editorView { display: none; }
   pointer-events: none;
 }
 #pauseBadge.show { opacity: 1; }
+
+#paceHud {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  z-index: 70;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 5px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+#paceHud .pace-sep { opacity: 0.5; }
+#paceEstimate { color: rgba(255, 255, 255, 0.4); }
+#paceDelta { font-weight: 600; }
+#paceDelta.ahead { color: #3fd268; }
+#paceDelta.behind { color: #ff5b5b; }
+#presentView.no-pace #paceHud { display: none; }
+
+#voiceHud {
+  position: absolute;
+  top: 18px;
+  left: 24px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.voice-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.voice-btn:hover { border-color: rgba(255, 255, 255, 0.35); }
+.voice-btn.on {
+  background: rgba(240, 75, 75, 0.85);
+  border-color: rgba(240, 75, 75, 0.9);
+  box-shadow: 0 0 0 4px rgba(240, 75, 75, 0.18);
+}
+#voiceStatus.error { color: #ff8a8a; }
 
 #progressBar {
   position: absolute;

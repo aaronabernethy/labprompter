@@ -1,5 +1,6 @@
 import { renderChunks, buildBackdropHTML, countWords, fmtDuration, fmtTime, measureLines, applyLineVars } from './render.js';
 import { Prompter, JOG_BASE_PX } from './present.js';
+import { VoiceFollowMatcher, buildWordIndex } from './voice-follow.js';
 
 const lab = window.lab;
 
@@ -32,6 +33,7 @@ const els = {
   scriptBody: $('scriptBody'),
   backdropContent: $('backdropContent'),
   btnInsertBreak: $('btnInsertBreak'),
+  btnInsertDirection: $('btnInsertDirection'),
   stats: $('stats'),
   previewContent: $('previewContent'),
   previewLine: $('previewLine'),
@@ -45,6 +47,13 @@ const els = {
   readingLine: $('readingLine'),
   pauseBadge: $('pauseBadge'),
   progressFill: $('progressFill'),
+  paceHud: $('paceHud'),
+  paceElapsed: $('paceElapsed'),
+  paceEstimate: $('paceEstimate'),
+  paceDelta: $('paceDelta'),
+  voiceHud: $('voiceHud'),
+  btnVoiceToggle: $('btnVoiceToggle'),
+  voiceStatus: $('voiceStatus'),
   settingsModal: $('settingsModal'),
   btnCloseSettings: $('btnCloseSettings'),
   buttonRows: $('buttonRows'),
@@ -80,6 +89,12 @@ let previewTimer = null;
 let settingsTimer = null;
 let stateTimer = null;
 
+// Live pacing readout while presenting: how long we've been reading vs. how
+// long the script should take, adapting to the talent's actual pace once
+// there's enough signal rather than sticking to the configured wpm forever.
+let presentStartTs = 0;
+let presentTotalWords = 0;
+
 // Client-side state when this instance is controlling another one.
 const rc = { mode: false, doc: null, state: null, stateAt: 0, raf: null };
 
@@ -105,6 +120,36 @@ function pushState() {
     speed: P.active ? P.speed() : 0,
     baseSpeedPct: settings.baseSpeedPct,
   });
+  updatePaceHud();
+}
+
+// Adaptive pace: once the talent has read enough for their actual rate to
+// mean something, the remaining-time estimate switches from the configured
+// wpm to how fast they're really going. The delta badge always compares
+// against the configured wpm, since that's the target being kept to.
+const PACE_ADAPT_MIN_SEC = 15;
+const PACE_ADAPT_MIN_WORDS = 20;
+
+function updatePaceHud() {
+  if (!P.active || !settings.showPaceTimer) return;
+  const elapsedSec = (performance.now() - presentStartTs) / 1000;
+  const targetWps = settings.wpm / 60;
+  const fraction = P.max ? P.pos / P.max : 0;
+  const wordsRead = fraction * presentTotalWords;
+
+  const adapt = elapsedSec >= PACE_ADAPT_MIN_SEC && wordsRead >= PACE_ADAPT_MIN_WORDS;
+  const paceWps = adapt ? wordsRead / elapsedSec : targetWps;
+  const remainingWords = Math.max(0, presentTotalWords - wordsRead);
+  const remainingSec = paceWps > 0 ? remainingWords / paceWps : 0;
+
+  els.paceElapsed.textContent = fmtDuration(elapsedSec);
+  els.paceEstimate.textContent = '~' + fmtDuration(elapsedSec + remainingSec);
+
+  const expectedWords = targetWps * elapsedSec;
+  const deltaSec = targetWps > 0 ? (wordsRead - expectedWords) / targetWps : 0;
+  els.paceDelta.classList.toggle('ahead', deltaSec >= 1);
+  els.paceDelta.classList.toggle('behind', deltaSec <= -1);
+  els.paceDelta.textContent = Math.abs(deltaSec) < 1 ? '' : (deltaSec > 0 ? '+' : '-') + fmtDuration(Math.abs(deltaSec));
 }
 
 function pushDoc() {
@@ -205,6 +250,7 @@ function applyPromptVars() {
   applyLineVars(els.readingLine, settings);
   applyLineVars(els.previewLine, settings);
   els.presentView.classList.toggle('no-progress', !settings.showProgress);
+  els.presentView.classList.toggle('no-pace', !settings.showPaceTimer);
   document.body.classList.toggle('all-caps', settings.allCaps);
 }
 
@@ -238,6 +284,8 @@ function syncSettingsUI() {
     if (out) out.textContent = c.fmt(settings[c.key]);
   }
   $('setShowProgress').checked = settings.showProgress;
+  $('setShowPaceTimer').checked = settings.showPaceTimer;
+  $('setVoiceFollow').checked = settings.voiceFollowEnabled;
   $('setDisplayMode').value = settings.displayMode === 'extended' ? 'extended' : 'mirrored';
   $('setAutoMove').checked = settings.autoMoveDisplay;
   $('setAllowRemote').checked = settings.allowRemote;
@@ -288,6 +336,16 @@ function wireSettings() {
   $('setShowProgress').addEventListener('change', (e) => {
     settings.showProgress = e.target.checked;
     applyPromptVars();
+    persistSettings();
+  });
+  $('setShowPaceTimer').addEventListener('change', (e) => {
+    settings.showPaceTimer = e.target.checked;
+    applyPromptVars();
+    persistSettings();
+  });
+  $('setVoiceFollow').addEventListener('change', (e) => {
+    settings.voiceFollowEnabled = e.target.checked;
+    syncVoiceUI();
     persistSettings();
   });
   $('setDisplayMode').addEventListener('change', (e) => {
@@ -890,6 +948,18 @@ function insertBreak() {
   ta.focus();
 }
 
+function insertDirection() {
+  const ta = els.scriptBody;
+  const { selectionStart: st, selectionEnd: en, value } = ta;
+  const selected = value.slice(st, en);
+  const placeholder = 'camera note';
+  const note = selected || placeholder;
+  ta.setRangeText(`[[${note}]]`, st, en, 'end');
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  ta.focus();
+  if (!selected) ta.setSelectionRange(st + 2, st + 2 + placeholder.length);
+}
+
 // ---------- Present mode ----------
 
 async function enterPresent() {
@@ -898,6 +968,8 @@ async function enterPresent() {
   closeSettings();
   renderChunks(els.scriptBody.value, els.promptContent);
   applyPromptVars();
+  presentStartTs = performance.now();
+  presentTotalWords = countWords(els.scriptBody.value);
   document.body.dataset.view = 'present';
   try {
     await lab.present.enter();
@@ -908,6 +980,7 @@ async function enterPresent() {
     P.enter();
     pushState();
     pushDoc();
+    syncVoiceUI();
   });
   clearInterval(stateTimer);
   stateTimer = setInterval(pushState, 100);
@@ -915,6 +988,7 @@ async function enterPresent() {
 
 function exitPresent() {
   if (!P.active) return;
+  stopVoiceListening();
   clearInterval(stateTimer);
   stateTimer = null;
   P.exit();
@@ -922,6 +996,110 @@ function exitPresent() {
   lab.present.exit();
   pushState();
   els.scriptBody.focus();
+}
+
+// ---------- Voice-follow ----------
+// The talent's own voice drives the scroll instead of a fixed speed: the
+// native speech-helper (macOS on-device Speech framework, see
+// src/main/voice.js) reports recognized text, which is matched against the
+// script here and turned into a scroll target for the Prompter (see
+// VOICE_GAIN in present.js). Off by default; the mic only opens once the
+// setting is on AND the talent presses the listening toggle in Present Mode.
+
+const voiceState = { listening: false, status: 'idle', error: '', matcher: null };
+
+function voiceAvailable() {
+  return settings.voiceFollowEnabled && lab.platform === 'darwin';
+}
+
+function buildVoiceMatcher(bodyText) {
+  const lines = measureLines(bodyText, els.editMeasure);
+  els.editMeasure.innerHTML = '';
+  return new VoiceFollowMatcher(buildWordIndex(lines));
+}
+
+const VOICE_STATUS_LABELS = {
+  idle: 'Voice-follow',
+  starting: 'Starting…',
+  listening: 'Listening…',
+};
+
+function syncVoiceUI() {
+  const show = voiceAvailable() && P.active;
+  els.voiceHud.hidden = !show;
+  if (!show) return;
+  els.btnVoiceToggle.classList.toggle('on', voiceState.listening);
+  els.voiceStatus.textContent =
+    voiceState.status === 'error' ? voiceState.error || 'Voice-follow error' : VOICE_STATUS_LABELS[voiceState.status] || '';
+  els.voiceStatus.classList.toggle('error', voiceState.status === 'error');
+}
+
+async function toggleVoiceListening() {
+  if (!voiceAvailable()) return;
+  if (voiceState.listening) {
+    stopVoiceListening();
+    return;
+  }
+  voiceState.matcher = buildVoiceMatcher(els.scriptBody.value);
+  voiceState.status = 'starting';
+  voiceState.error = '';
+  syncVoiceUI();
+  const res = await lab.voice.start();
+  if (!res || !res.ok) {
+    voiceState.status = 'error';
+    voiceState.error = (res && res.error) || 'Could not start voice-follow.';
+    syncVoiceUI();
+    return;
+  }
+  voiceState.listening = true;
+  syncVoiceUI();
+}
+
+function stopVoiceListening() {
+  if (!voiceState.listening && voiceState.status === 'idle') return;
+  lab.voice.stop();
+  voiceState.listening = false;
+  voiceState.status = 'idle';
+  voiceState.matcher = null;
+  P.setVoiceTarget(null);
+  syncVoiceUI();
+}
+
+const VOICE_PERMISSION_MESSAGES = {
+  microphone: 'Microphone access denied — check System Settings → Privacy & Security → Microphone.',
+  speech: 'Speech recognition access denied — check System Settings → Privacy & Security → Speech Recognition.',
+};
+
+function handleVoiceEvent(ev) {
+  switch (ev.type) {
+    case 'ready':
+      voiceState.status = 'listening';
+      break;
+    case 'partial':
+    case 'final': {
+      const target = voiceState.matcher ? voiceState.matcher.feed(ev.text) : null;
+      if (target != null) P.setVoiceTarget(target);
+      break;
+    }
+    case 'permission-denied':
+      voiceState.listening = false;
+      voiceState.status = 'error';
+      voiceState.error = VOICE_PERMISSION_MESSAGES[ev.stage] || 'Permission denied.';
+      P.setVoiceTarget(null);
+      break;
+    case 'error':
+      voiceState.status = 'error';
+      voiceState.error = ev.message || 'Voice-follow error.';
+      break;
+    case 'stopped':
+      voiceState.listening = false;
+      voiceState.status = 'idle';
+      P.setVoiceTarget(null);
+      break;
+    default:
+      return;
+  }
+  syncVoiceUI();
 }
 
 // ---------- Live editing while presenting ----------
@@ -933,7 +1111,19 @@ function applyLiveEdit(newBody) {
   if (!current || typeof newBody !== 'string') return;
   const oldBody = current.body;
   if (newBody === oldBody) return;
-  if (P.active) reflowPresent(oldBody, newBody);
+  if (P.active) {
+    reflowPresent(oldBody, newBody);
+    presentTotalWords = countWords(newBody);
+    if (voiceState.listening) {
+      // Keep roughly the same read-through progress in the rebuilt word
+      // index rather than resetting to the start of the (now different)
+      // script.
+      const oldWords = voiceState.matcher ? voiceState.matcher.words.length : 0;
+      const fraction = oldWords ? (voiceState.matcher.cursor + 1) / oldWords : 0;
+      voiceState.matcher = buildVoiceMatcher(newBody);
+      voiceState.matcher.cursor = Math.max(-1, Math.round(fraction * voiceState.matcher.words.length) - 1);
+    }
+  }
   current.body = newBody;
   els.scriptBody.value = newBody;
   markDirty();
@@ -1330,6 +1520,7 @@ function wireEvents() {
   });
 
   els.btnInsertBreak.addEventListener('click', insertBreak);
+  els.btnInsertDirection.addEventListener('click', insertDirection);
   els.btnPresent.addEventListener('click', enterPresent);
   els.btnNew.addEventListener('click', newScript);
   els.btnImport.addEventListener('click', importScript);
@@ -1386,6 +1577,8 @@ function wireEvents() {
   lab.shuttle.onStatus(renderShuttleStatus);
   lab.onRemote(handleRemote);
   lab.onLiveEdit(applyLiveEdit);
+  lab.voice.onEvent(handleVoiceEvent);
+  els.btnVoiceToggle.addEventListener('click', toggleVoiceListening);
 
   els.btnRemote.addEventListener('click', () => {
     if (els.remoteModal.hidden) openRemoteModal();

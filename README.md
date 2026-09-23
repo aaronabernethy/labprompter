@@ -42,9 +42,11 @@ Remote Control from a second Mac (below) is unaffected by the display mode and r
 
 - **Script editor** — plain-text editing, so pasting from Word/Docs/Notes strips all formatting automatically. Import from `.txt`, `.md`, and `.docx`. Live prompter preview with adjustable text size and an ALL CAPS toggle.
 - **Jump markers** — put `---` (or `[BREAK]`) alone on a line to mark a jump point. Markers show as amber pills in the editor and as labeled dividers in the preview; in Present Mode they're invisible jump targets.
+- **Screen directions** — wrap camera notes or off-script cues in `[[double brackets]]`, e.g. `[[look at camera B]]`, or use the **🎥 Insert direction** button. They render dimmed and italic in the editor preview and Present Mode, and are excluded from the word count, time estimate, and pacing readout. Keep each direction on one line — brackets don't span a line break.
 - **Script library** — scripts autosave locally as flat JSON files (`~/Library/Application Support/labprompter/scripts/`). Open, rename, and delete from the Library panel.
 - **StudioOS sessions** — pair once with The Content Lab's StudioOS (Settings → StudioOS) and the Library gains a **Sessions** tab listing upcoming studio sessions with the scripts their clients have attached. One click loads a script into the prompter; clicking again after it's been edited in StudioOS pulls the latest wording.
 - **Present Mode** — fullscreen, black background, white text, zero chrome. A reading line marks the current position, with an optional thin progress bar along the bottom. The cursor auto-hides, and the display is kept awake while presenting.
+- **Pacing timer** — a small elapsed / estimated-total readout in the corner of Present Mode, plus an ahead/behind badge against your configured reading pace (Settings → Speed → Reading pace). The estimate adapts to how you're actually reading once you're a little way in, rather than sticking to one wpm number for the whole take. Toggle it off in Settings → Prompter.
 - **Reading line styles** — if the thin line doesn't read on your glass, Settings offers a **bar behind the text** style that frames the whole line being spoken, color swatches plus a custom color picker, thickness/height, and intensity. Styling previews live in the editor and carries through to the Operator View and remote mirrors.
 - **Extended display mode** — for setups where Screen 2 *extends* the desktop instead of mirroring it: Present opens on the prompter display while a separate **Operator View** window stays on Screen 1 with a live mirror, upcoming lines, section position, live speed, controller status, and all Present Mode controls — plus **live script editing** that updates the teleprompter as you type, without exiting Present Mode or moving the talent's reading position.
 - **Shuttle control** — spring-loaded shuttle ring sets scroll speed proportionally (gentle twist = slow crawl, full twist = fast), the free-spinning jog dial nudges/scrubs, and all buttons are remappable in Settings.
@@ -101,6 +103,12 @@ LabPrompter can pull scripts straight from The Content Lab's StudioOS, so nobody
 4. If a script is edited in StudioOS after you loaded it, the Sessions tab shows **Update**; click it to replace your local copy with the new wording. Scripts that haven't changed upstream keep any local tweaks.
 
 Revoking the device in StudioOS takes effect on the next refresh; **Disconnect** in Settings forgets the key locally. Only the studio Mac needs pairing — an assistant's Mac on Remote Control edits whatever the studio Mac has loaded.
+
+## Voice-follow (beta)
+
+Your voice can drive the scroll instead of a fixed speed: turn on **Settings → Speed → Enable voice-follow** (macOS only), then in Present Mode click the 🎤 button to start listening. Speech recognition runs entirely on-device via Apple's Speech framework — nothing is ever sent off the Mac. Pause, ad-lib, or skip a line and the prompter waits or catches back up on its own.
+
+This is a first cut and hasn't been run on a real Mac yet — see `docs/voice-follow.md` for the architecture and a short list of things worth checking (permission prompts, first compile) before relying on it for a shoot.
 
 ## Stream Deck
 
@@ -188,6 +196,5 @@ With those set, electron-builder signs with Developer ID, submits to Apple's not
 
 ## Out of scope for v1
 
-- Voice sync / auto-scroll from speech
 - Multi-user or networked control
 - Stream Deck SDK plugin (the keyboard fallback covers hotkey binding for now)

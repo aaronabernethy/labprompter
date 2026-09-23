@@ -1,7 +1,33 @@
 export const MARKER_RE = /^\s*(?:-{3,}|\[break\])\s*$/i;
 
+// Screen directions: camera notes / off-script cues wrapped in double
+// brackets, e.g. "[[look at camera B]]". They stay visible to the talent
+// but are excluded from spoken word counts, pacing estimates and (later)
+// voice-follow matching.
+export const DIRECTION_RE = /\[\[([^\]\n]*)\]\]/g;
+
+export function stripDirections(text) {
+  return (text || '').replace(DIRECTION_RE, '');
+}
+
 function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// keepBrackets=true reproduces the literal characters (used by the editor
+// backdrop, which must align 1:1 with the transparent textarea on top of
+// it); keepBrackets=false shows just the note text (used anywhere the
+// brackets themselves would just be noise for the reader).
+function markDirectionsHTML(text, keepBrackets) {
+  return escapeHtml(text).replace(DIRECTION_RE, (m, inner) => `<span class="direction">${keepBrackets ? m : inner}</span>`);
+}
+
+export function renderInlineHTML(text) {
+  return markDirectionsHTML(text, true);
+}
+
+export function renderPromptHTML(text) {
+  return markDirectionsHTML(text, false);
 }
 
 // Splits the script into chunks separated by marker lines and renders them
@@ -21,7 +47,7 @@ export function renderChunks(body, container) {
     if (!chunkText) return;
     const div = document.createElement('div');
     div.className = 'chunk jump';
-    div.textContent = chunkText;
+    div.innerHTML = renderPromptHTML(chunkText);
     container.appendChild(div);
   };
 
@@ -93,12 +119,12 @@ export function buildBackdropHTML(text) {
   return text
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .map((line) => (MARKER_RE.test(line) && line.trim() ? `<span class="mk">${escapeHtml(line)}</span>` : escapeHtml(line)))
+    .map((line) => (MARKER_RE.test(line) && line.trim() ? `<span class="mk">${escapeHtml(line)}</span>` : renderInlineHTML(line)))
     .join('\n');
 }
 
 export function countWords(text) {
-  const t = (text || '').trim();
+  const t = stripDirections(text || '').trim();
   return t ? t.split(/\s+/).length : 0;
 }
 

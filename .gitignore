@@ -5,3 +5,4 @@ npm-debug.log*
 *.local
 .claude/
 build/icon.iconset/
+.build/

@@ -1,7 +1,7 @@
 {
   "name": "labprompter",
   "productName": "LabPrompter",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Local-only teleprompter for the Elgato Prompter XL with an operator-visible reading line and Contour shuttle control.",
   "private": true,
   "license": "MIT",
@@ -10,8 +10,9 @@
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke-test",
-    "dist": "electron-builder",
-    "release": "electron-builder --publish always"
+    "build:helper": "node tools/build-speech-helper.js",
+    "dist": "npm run build:helper && electron-builder",
+    "release": "npm run build:helper && electron-builder --publish always"
   },
   "dependencies": {
     "bonjour-service": "^1.4.4",
@@ -42,7 +43,14 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extraResources": [
+        { "from": "native/speech-helper/dist/speech-helper", "to": "speech-helper" }
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "LabPrompter uses the microphone so voice-follow can keep the script scrolling in time with your voice. Audio is processed on this Mac only.",
+        "NSSpeechRecognitionUsageDescription": "LabPrompter uses on-device speech recognition to match your voice to the script for voice-follow scrolling. Nothing is sent to Apple or anywhere else."
+      }
     },
     "publish": {
       "provider": "github",

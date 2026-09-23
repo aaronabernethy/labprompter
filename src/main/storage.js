@@ -20,6 +20,8 @@ const DEFAULTS = {
   shuttleSens: 100,
   jogSens: 100,
   wpm: 150,
+  showPaceTimer: true,
+  voiceFollowEnabled: false,
   allowRemote: true,
   libraryTab: 'library',
   lastScriptId: null,
