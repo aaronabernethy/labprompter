@@ -34,14 +34,25 @@ lab.voice.onEvent(ev)  ←──────────────  forwards e
   "stage":"speech"|"microphone"}`, `{"type":"error","message":"..."}`.
   A `"stop"` line on stdin shuts it down. On-device recognition tasks cap
   out around a minute of audio, so it rolls over to a fresh request every
-  50s without dropping the audio tap.
+  50s without dropping the audio tap. `speech-helper list-devices` is a
+  second, separate mode: it enumerates microphones via Core Audio
+  (`kAudioHardwarePropertyDevices` + `kAudioDevicePropertyDeviceUID`) and
+  exits — no speech/mic permission needed just to list names — printing
+  `{"type":"devices","devices":[{"id":"<uid>","name":"..."}]}`. Setting
+  `LABPROMPTER_INPUT_DEVICE_UID` before the normal (listening) invocation
+  pins the `AVAudioEngine` input to that device via
+  `kAudioOutputUnitProperty_CurrentDevice` on the input node's audio unit;
+  unset or no-longer-connected falls back to the system default input.
 - **`src/main/voice.js`** — spawns the helper (mirrors the existing
   `src/main/shuttle.js` pattern for the Contour shuttle: a small wrapper
-  around an external device/process, with `start`/`stop`/`status`).
-  Resolves the binary at `native/speech-helper/dist/speech-helper` in dev
-  or `process.resourcesPath/speech-helper` when packaged. Missing binary,
-  non-macOS, or a spawn failure all degrade to `{ ok: false, error }`
-  rather than throwing.
+  around an external device/process, with `start`/`stop`/`status`/
+  `listInputs`). Resolves the binary at `native/speech-helper/dist/
+  speech-helper` in dev or `process.resourcesPath/speech-helper` when
+  packaged. Missing binary, non-macOS, or a spawn failure all degrade to
+  `{ ok: false, error }` rather than throwing. `listInputs()` spawns a
+  separate short-lived `list-devices` process so populating the Settings
+  microphone dropdown never opens the mic or triggers a permission prompt
+  on its own.
 - **`src/renderer/voice-follow.js`** — pure word-matching logic, no DOM.
   `buildWordIndex(lines)` takes the same line geometry `measureLines()`
   (in `render.js`) already produces for live-edit reflow, and flattens it
@@ -120,6 +131,15 @@ framework code without a real Mac.
    than an exact per-character offset, which is plenty for smooth
    scrolling but means a future per-word highlight would want finer
    geometry than `measureLines()` currently returns.
+6. **Mic selection is Core Audio, also never compiled.** Picking a
+   non-default microphone (Settings → Speed → Microphone) uses
+   `AudioObjectGetPropertyData`/`AudioUnitSetProperty` directly — the
+   standard technique for pointing `AVAudioEngine` at a specific input
+   device, but untested here for the same reason as everything else in
+   this file. If a selected mic doesn't take effect, check that
+   `selectConfiguredInputDevice()` in `main.swift` runs before
+   `audioEngine.prepare()`/`start()` (it does today) and that
+   `inputNode.audioUnit` isn't `nil` at that point.
 
 None of this blocks trying it — worst case on first boot is "doesn't
 listen yet" with a clear error message, not a crash — but budget a short

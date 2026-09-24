@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('lab', {
     status: () => ipcRenderer.invoke('voice:status'),
     start: () => ipcRenderer.invoke('voice:start'),
     stop: () => ipcRenderer.invoke('voice:stop'),
+    listInputs: () => ipcRenderer.invoke('voice:listInputs'),
     onEvent: (cb) => ipcRenderer.on('voice:event', (e, data) => cb(data)),
   },
   onMenu: (cb) => ipcRenderer.on('menu:action', (e, action) => cb(action)),

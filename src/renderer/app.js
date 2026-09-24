@@ -54,6 +54,10 @@ const els = {
   voiceHud: $('voiceHud'),
   btnVoiceToggle: $('btnVoiceToggle'),
   voiceStatus: $('voiceStatus'),
+  rowVoiceInput: $('rowVoiceInput'),
+  setVoiceInput: $('setVoiceInput'),
+  btnVoiceInputRefresh: $('btnVoiceInputRefresh'),
+  voiceInputMessage: $('voiceInputMessage'),
   settingsModal: $('settingsModal'),
   btnCloseSettings: $('btnCloseSettings'),
   buttonRows: $('buttonRows'),
@@ -286,6 +290,7 @@ function syncSettingsUI() {
   $('setShowProgress').checked = settings.showProgress;
   $('setShowPaceTimer').checked = settings.showPaceTimer;
   $('setVoiceFollow').checked = settings.voiceFollowEnabled;
+  syncVoiceInputRow();
   $('setDisplayMode').value = settings.displayMode === 'extended' ? 'extended' : 'mirrored';
   $('setAutoMove').checked = settings.autoMoveDisplay;
   $('setAllowRemote').checked = settings.allowRemote;
@@ -346,8 +351,15 @@ function wireSettings() {
   $('setVoiceFollow').addEventListener('change', (e) => {
     settings.voiceFollowEnabled = e.target.checked;
     syncVoiceUI();
+    syncVoiceInputRow();
+    if (settings.voiceFollowEnabled) loadVoiceInputs();
     persistSettings();
   });
+  els.setVoiceInput.addEventListener('change', (e) => {
+    settings.voiceInputDeviceId = e.target.value || null;
+    persistSettings();
+  });
+  els.btnVoiceInputRefresh.addEventListener('click', loadVoiceInputs);
   $('setDisplayMode').addEventListener('change', (e) => {
     settings.displayMode = e.target.value;
     syncDisplayModeUI();
@@ -1018,6 +1030,47 @@ function buildVoiceMatcher(bodyText) {
   return new VoiceFollowMatcher(buildWordIndex(lines));
 }
 
+// ---- Microphone selection (Settings) ----
+// Listing devices doesn't touch speech/mic permission — see main.swift's
+// `list-devices` mode — so it's safe to refresh whenever the settings panel
+// with voice-follow enabled is open, not just when the talent presses Start.
+
+function syncVoiceInputRow() {
+  els.rowVoiceInput.hidden = !voiceAvailable();
+}
+
+async function loadVoiceInputs() {
+  if (!voiceAvailable()) return;
+  els.voiceInputMessage.hidden = true;
+  const res = await lab.voice.listInputs();
+  if (!res || !res.ok) {
+    els.voiceInputMessage.hidden = false;
+    els.voiceInputMessage.textContent = (res && res.error) || 'Could not list microphones.';
+    return;
+  }
+  const current = settings.voiceInputDeviceId || '';
+  els.setVoiceInput.innerHTML = '';
+  const def = document.createElement('option');
+  def.value = '';
+  def.textContent = 'System default';
+  els.setVoiceInput.appendChild(def);
+  for (const d of res.devices) {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.name;
+    els.setVoiceInput.appendChild(opt);
+  }
+  // A previously chosen mic that's no longer connected stays selected in
+  // settings (it may just be unplugged) rather than silently reverting.
+  if (current && !res.devices.some((d) => d.id === current)) {
+    const missing = document.createElement('option');
+    missing.value = current;
+    missing.textContent = 'Not connected (previously selected)';
+    els.setVoiceInput.appendChild(missing);
+  }
+  els.setVoiceInput.value = current;
+}
+
 const VOICE_STATUS_LABELS = {
   idle: 'Voice-follow',
   starting: 'Starting…',
@@ -1486,6 +1539,7 @@ function openSettings() {
   renderButtonRows();
   showStudioMessage('');
   syncStudioSettingsUI();
+  if (voiceAvailable()) loadVoiceInputs();
   els.settingsModal.hidden = false;
 }
 

@@ -403,6 +403,7 @@ ipcMain.handle('shuttle:status', () => shuttle.getStatus());
 ipcMain.handle('voice:status', () => voice.status());
 ipcMain.handle('voice:start', () => {
   return voice.start({
+    deviceId: storage.getSettings().voiceInputDeviceId,
     onEvent: (ev) => {
       if (win) win.webContents.send('voice:event', ev);
     },
@@ -411,6 +412,7 @@ ipcMain.handle('voice:start', () => {
 ipcMain.handle('voice:stop', () => {
   voice.stop();
 });
+ipcMain.handle('voice:listInputs', () => voice.listInputs());
 
 // ---- IPC: diagnostics ----
 ipcMain.on('renderer:error', (e, msg) => {

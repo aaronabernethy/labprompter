@@ -27,7 +27,7 @@ function available() {
   return process.platform === 'darwin' && fs.existsSync(helperPath());
 }
 
-function start({ onEvent } = {}) {
+function start({ onEvent, deviceId } = {}) {
   if (state.proc) return { ok: true };
   if (process.platform !== 'darwin') {
     return { ok: false, error: 'Voice-follow needs macOS — it runs on Apple’s on-device Speech framework.' };
@@ -41,7 +41,9 @@ function start({ onEvent } = {}) {
 
   let proc;
   try {
-    proc = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const env = { ...process.env };
+    if (deviceId) env.LABPROMPTER_INPUT_DEVICE_UID = deviceId;
+    proc = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'], env });
   } catch (err) {
     return { ok: false, error: 'Could not start the voice-follow helper: ' + err.message };
   }
@@ -97,8 +99,73 @@ function stop() {
   }, 1500);
 }
 
+// Enumerates microphones without touching speech/mic permission (see
+// main.swift's `list-devices` mode) — a short-lived, separate process from
+// the one that actually listens, so populating a Settings dropdown never
+// triggers a permission prompt on its own.
+function listInputs() {
+  return new Promise((resolve) => {
+    if (process.platform !== 'darwin') {
+      resolve({ ok: false, error: 'Voice-follow needs macOS.' });
+      return;
+    }
+    const bin = helperPath();
+    if (!fs.existsSync(bin)) {
+      resolve({ ok: false, error: 'The voice-follow helper isn’t bundled with this build yet.' });
+      return;
+    }
+
+    let proc;
+    try {
+      proc = spawn(bin, ['list-devices'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) {
+      resolve({ ok: false, error: 'Could not list microphones: ' + err.message });
+      return;
+    }
+
+    let out = '';
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = setTimeout(() => {
+      try {
+        proc.kill();
+      } catch {
+        // already exited
+      }
+      finish({ ok: false, error: 'Timed out listing microphones.' });
+    }, 5000);
+
+    proc.stdout.on('data', (chunk) => {
+      out += chunk.toString('utf8');
+    });
+    proc.on('error', (err) => finish({ ok: false, error: 'Could not list microphones: ' + err.message }));
+    proc.on('exit', () => {
+      const line = out.split('\n').find((l) => l.trim());
+      try {
+        const ev = line ? JSON.parse(line) : null;
+        if (ev && ev.type === 'devices' && Array.isArray(ev.devices)) {
+          finish({ ok: true, devices: ev.devices });
+          return;
+        }
+        if (ev && ev.type === 'error' && ev.message) {
+          finish({ ok: false, error: ev.message });
+          return;
+        }
+      } catch {
+        // fall through to the generic error below
+      }
+      finish({ ok: false, error: 'Could not list microphones.' });
+    });
+  });
+}
+
 function status() {
   return { available: available(), running: !!state.proc };
 }
 
-module.exports = { start, stop, status, available };
+module.exports = { start, stop, status, available, listInputs };

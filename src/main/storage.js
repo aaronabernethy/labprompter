@@ -22,6 +22,7 @@ const DEFAULTS = {
   wpm: 150,
   showPaceTimer: true,
   voiceFollowEnabled: false,
+  voiceInputDeviceId: null,
   allowRemote: true,
   libraryTab: 'library',
   lastScriptId: null,

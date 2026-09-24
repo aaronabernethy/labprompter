@@ -106,7 +106,7 @@ Revoking the device in StudioOS takes effect on the next refresh; **Disconnect**
 
 ## Voice-follow (beta)
 
-Your voice can drive the scroll instead of a fixed speed: turn on **Settings → Speed → Enable voice-follow** (macOS only), then in Present Mode click the 🎤 button to start listening. Speech recognition runs entirely on-device via Apple's Speech framework — nothing is ever sent off the Mac. Pause, ad-lib, or skip a line and the prompter waits or catches back up on its own.
+Your voice can drive the scroll instead of a fixed speed: turn on **Settings → Speed → Enable voice-follow** (macOS only), then in Present Mode click the 🎤 button to start listening. Speech recognition runs entirely on-device via Apple's Speech framework — nothing is ever sent off the Mac. Pause, ad-lib, or skip a line and the prompter waits or catches back up on its own. If the studio has more than one microphone, a **Microphone** dropdown appears in the same settings section once voice-follow is on — pick one, or leave it on System default.
 
 This is a first cut and hasn't been run on a real Mac yet — see `docs/voice-follow.md` for the architecture and a short list of things worth checking (permission prompts, first compile) before relying on it for a shoot.
 
