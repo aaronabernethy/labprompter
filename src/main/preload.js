@@ -24,6 +24,13 @@ contextBridge.exposeInMainWorld('lab', {
     onEvent: (cb) => ipcRenderer.on('shuttle:event', (e, data) => cb(data)),
     onStatus: (cb) => ipcRenderer.on('shuttle:status', (e, data) => cb(data)),
   },
+  voice: {
+    status: () => ipcRenderer.invoke('voice:status'),
+    start: () => ipcRenderer.invoke('voice:start'),
+    stop: () => ipcRenderer.invoke('voice:stop'),
+    listInputs: () => ipcRenderer.invoke('voice:listInputs'),
+    onEvent: (cb) => ipcRenderer.on('voice:event', (e, data) => cb(data)),
+  },
   onMenu: (cb) => ipcRenderer.on('menu:action', (e, action) => cb(action)),
   onRemote: (cb) => ipcRenderer.on('remote:action', (e, action) => cb(action)),
   state: (patch) => ipcRenderer.send('state:update', patch),

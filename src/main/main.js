@@ -7,6 +7,7 @@ const importers = require('./importers');
 const control = require('./control-server');
 const remote = require('./remote');
 const studio = require('./studio');
+const voice = require('./voice');
 
 // Dev runs store data under the package name ("labprompter"); pin the
 // packaged app to the same folder so the script library carries over.
@@ -389,11 +390,29 @@ ipcMain.handle('present:exit', () => {
   else win.setFullScreen(false);
   if (savedBounds) win.setBounds(savedBounds);
   stopBlocker();
+  voice.stop();
   win.focus();
 });
 
 // ---- IPC: shuttle ----
 ipcMain.handle('shuttle:status', () => shuttle.getStatus());
+
+// ---- IPC: voice-follow ----
+// The mic only opens while the renderer explicitly asks for it (Present
+// Mode, voice-follow scroll mode) — never on app launch.
+ipcMain.handle('voice:status', () => voice.status());
+ipcMain.handle('voice:start', () => {
+  return voice.start({
+    deviceId: storage.getSettings().voiceInputDeviceId,
+    onEvent: (ev) => {
+      if (win) win.webContents.send('voice:event', ev);
+    },
+  });
+});
+ipcMain.handle('voice:stop', () => {
+  voice.stop();
+});
+ipcMain.handle('voice:listInputs', () => voice.listInputs());
 
 // ---- IPC: diagnostics ----
 ipcMain.on('renderer:error', (e, msg) => {
@@ -607,6 +626,7 @@ app.whenReady().then(() => {
 app.on('before-quit', () => {
   cancelReconnect();
   shuttle.stop();
+  voice.stop();
   control.stop();
   remote.stopAll();
   stopBlocker();

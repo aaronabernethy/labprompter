@@ -5,6 +5,10 @@ const easeOut = (k) => 1 - Math.pow(1 - k, 3);
 export const FULL_SPEED_PX = 600;
 // Jog dial px per detent at 100% sensitivity.
 export const JOG_BASE_PX = 48;
+// Voice-follow: how hard the reading position is pulled toward the last
+// recognized word, and how fast it's allowed to catch up on a big jump.
+export const VOICE_GAIN = 3.2;
+export const VOICE_MAX_PX_S = FULL_SPEED_PX * 1.6;
 
 export class Prompter {
   constructor(els, getSettings, hooks) {
@@ -20,6 +24,7 @@ export class Prompter {
     this.dir = 1;
     this.shuttleDetent = 0;
     this.holdDir = 0;
+    this.voiceTarget = null;
     this.jumps = [];
     this.tween = null;
     this._raf = null;
@@ -88,6 +93,10 @@ export class Prompter {
 
   speed() {
     const s = this.s();
+    if (this.voiceTarget != null) {
+      const err = this.voiceTarget - this.pos;
+      return clamp(err * VOICE_GAIN, -VOICE_MAX_PX_S, VOICE_MAX_PX_S);
+    }
     if (this.shuttleDetent !== 0) {
       const d = this.shuttleDetent;
       return Math.sign(d) * Math.pow(Math.abs(d) / 7, 2.2) * (s.shuttleSens / 100) * FULL_SPEED_PX;
@@ -129,7 +138,13 @@ export class Prompter {
     this.els.promptContent.style.transform = `translate3d(0, ${(this.lineY - this.pos).toFixed(2)}px, 0)`;
     this.els.progressFill.style.width = (this.max ? (this.pos / this.max) * 100 : 0) + '%';
     const paused =
-      this.active && !this.playing && this.shuttleDetent === 0 && this.holdDir === 0 && !this.tween && this.pos > 2;
+      this.active &&
+      this.voiceTarget == null &&
+      !this.playing &&
+      this.shuttleDetent === 0 &&
+      this.holdDir === 0 &&
+      !this.tween &&
+      this.pos > 2;
     this.els.pauseBadge.classList.toggle('show', paused);
     if (this.playing !== this._lastPlayState) {
       this._lastPlayState = this.playing;
@@ -140,6 +155,13 @@ export class Prompter {
   setShuttle(v) {
     this.shuttleDetent = v;
     if (v !== 0) this.tween = null;
+  }
+
+  // Voice-follow drives the reading position toward `px` (see VOICE_GAIN);
+  // null hands control back to shuttle/hold/play.
+  setVoiceTarget(px) {
+    this.voiceTarget = px == null ? null : clamp(px, 0, this.max);
+    this.tween = null;
   }
 
   scrub(px) {

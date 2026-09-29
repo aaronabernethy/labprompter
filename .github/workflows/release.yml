@@ -22,6 +22,13 @@ name: Release
 # electron-builder creates a DRAFT release — publishing it (so
 # electron-updater on installed apps picks it up) is a manual step on
 # the GitHub Releases page, same as a local release.
+#
+# `npm run release` also runs `npm run build:helper` first, which
+# compiles the voice-follow native helper (native/speech-helper, see
+# docs/voice-follow.md) with the Swift toolchain macos-latest ships
+# with. If that build fails for any reason it falls back to a stub
+# binary rather than failing the whole release — voice-follow just
+# reports itself unavailable in that build instead of listening.
 
 on:
   push:

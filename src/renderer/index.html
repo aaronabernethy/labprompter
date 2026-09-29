@@ -48,10 +48,11 @@
         <div class="editor-stack">
           <div class="editor-backdrop"><div id="backdropContent"></div></div>
           <textarea id="scriptBody" spellcheck="false"
-            placeholder="Paste or type your script here…&#10;&#10;Put --- (or [BREAK]) alone on a line to add a jump marker."></textarea>
+            placeholder="Paste or type your script here…&#10;&#10;Put --- (or [BREAK]) alone on a line to add a jump marker.&#10;Wrap camera notes in [[double brackets]] to keep them off the word count."></textarea>
         </div>
         <div class="editor-tools">
           <button id="btnInsertBreak" class="btn small">－ Insert break</button>
+          <button id="btnInsertDirection" class="btn small">🎥 Insert direction</button>
           <span id="stats" class="stats"></span>
         </div>
       </section>
@@ -124,6 +125,16 @@
     <div class="edge-fade top"></div>
     <div class="edge-fade bottom"></div>
     <div id="pauseBadge">❚❚</div>
+    <div id="voiceHud" hidden>
+      <button id="btnVoiceToggle" class="voice-btn" title="Toggle voice-follow listening">🎤</button>
+      <span id="voiceStatus"></span>
+    </div>
+    <div id="paceHud">
+      <span id="paceElapsed">0:00</span>
+      <span class="pace-sep">/</span>
+      <span id="paceEstimate">~0:00</span>
+      <span id="paceDelta"></span>
+    </div>
     <div id="progressBar"><div id="progressFill"></div></div>
   </div>
 
@@ -204,6 +215,7 @@
             <output data-out="setLineOpacity"></output>
           </label>
           <label class="row check"><input type="checkbox" id="setShowProgress" /> Show progress bar</label>
+          <label class="row check"><input type="checkbox" id="setShowPaceTimer" /> Show pacing timer</label>
         </section>
         <section>
           <h3>Displays</h3>
@@ -268,6 +280,14 @@
             <input type="range" id="setWpm" min="90" max="220" step="5" />
             <output data-out="setWpm"></output>
           </label>
+          <label class="row check"><input type="checkbox" id="setVoiceFollow" /> Enable voice-follow (beta, macOS only)</label>
+          <p class="muted">Your voice drives the scroll instead of a fixed speed — everything runs on-device, nothing leaves this Mac. Toggle listening from the mic button in Present Mode.</p>
+          <label class="row" id="rowVoiceInput" hidden>
+            <span>Microphone</span>
+            <select id="setVoiceInput"><option value="">System default</option></select>
+            <button id="btnVoiceInputRefresh" class="btn small" title="Refresh microphone list">↻</button>
+          </label>
+          <p class="muted" id="voiceInputMessage" hidden></p>
         </section>
         <section>
           <h3>Controller buttons</h3>
