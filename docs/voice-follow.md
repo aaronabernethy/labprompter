@@ -80,16 +80,18 @@ npm run build:helper
 
 Compiles `native/speech-helper` with Swift Package Manager and stages the
 binary at `native/speech-helper/dist/speech-helper` — the path both
-`npm start` and the packaged app (via `electron-builder`'s
-`build.mac.extraResources`) read from. `npm run dist` / `npm run release`
-run this first automatically (see `tools/build-speech-helper.js`).
+the running app (in dev) and the packaged app (via `electron-builder`'s
+`build.mac.extraResources`) read from. `npm start`, `npm run dist` and
+`npm run release` all run this first automatically (see
+`tools/build-speech-helper.js`), so a fresh `git clone` + `npm start`
+just works without a separate build step.
 
 Off macOS, or if `swift build` fails, it stages a stub script instead of
 failing the build — the stub reports itself as unavailable
 (`{"type":"error","message":"Voice-follow helper was not compiled into this
-build."}`) rather than leaving the app unable to package at all. That's
-also what a normal `git clone` + `npm run dist` gets today on this Linux
-dev environment, since there's no way to build or test Swift/Speech-
+build."}`) rather than leaving the app unable to start or package at all.
+That's also what a normal `git clone` + `npm start` gets today on this
+Linux dev environment, since there's no way to build or test Swift/Speech-
 framework code without a real Mac.
 
 ## Known risk areas (please check these on the studio Mac)
