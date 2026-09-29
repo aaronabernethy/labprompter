@@ -137,7 +137,7 @@ npm install
 npm start
 ```
 
-`npm install` downloads Electron; `node-hid` ships prebuilt N-API binaries, so no compiler toolchain is needed.
+`npm install` downloads Electron; `node-hid` ships prebuilt N-API binaries, so no compiler toolchain is needed. `npm start` also compiles the optional voice-follow helper the first time (macOS only — see `docs/voice-follow.md`); it's quick and safe to skip elsewhere, since it just stages a stub off macOS.
 
 To build a standalone app (`dist/LabPrompter.app`, unsigned):
 

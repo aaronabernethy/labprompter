@@ -8,7 +8,7 @@
   "author": "Aaron Abernethy",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "npm run build:helper && electron .",
     "smoke": "electron . --smoke-test",
     "build:helper": "node tools/build-speech-helper.js",
     "dist": "npm run build:helper && electron-builder",
